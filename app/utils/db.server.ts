@@ -2,9 +2,10 @@ import { PrismaClient } from "@prisma/client";
 
 let db: PrismaClient;
 
+// TypeScript에게 global 타입을 확장
 declare global {
-  // var 대신 let 사용
-  let __db: PrismaClient | undefined;
+  // eslint-disable-next-line no-var
+  var __db: PrismaClient | undefined;
 }
 
 // 개발 환경에서 핫 리로딩 시 중복 연결 방지

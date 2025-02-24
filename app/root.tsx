@@ -6,10 +6,10 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
-  useLoaderData,
+  // useLoaderData 제거 - 사용하지 않으므로
 } from "@remix-run/react";
 import styles from "./styles/tailwind.css";
-import { getUser } from "./utils/session.server";
+import { getUser } from "./utils/session.server"; // 경로 수정
 
 export const links: LinksFunction = () => [
   { rel: "stylesheet", href: styles },
@@ -22,7 +22,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export default function App() {
-  const { user } = useLoaderData<typeof loader>();
+  // 사용하지 않는 변수는 제거
+  // const { user } = useLoaderData<typeof loader>();
 
   return (
     <html lang="ko" className="h-full">

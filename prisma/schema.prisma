@@ -1,0 +1,111 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  password      String
+  profileImage  String?
+  role          Role      @default(USER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // 블로그 관련
+  posts         Post[]
+  comments      Comment[]
+
+  // 채팅 관련
+  messages      Message[]
+  chatRooms    ChatRoomUser[]
+}
+
+model Post {
+  id          String      @id @default(cuid())
+  title       String
+  content     String      @db.Text
+  published   Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  author      User        @relation(fields: [authorId], references: [id])
+  authorId    String
+  
+  tags        TagsOnPosts[]
+  comments    Comment[]
+}
+
+model Tag {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  posts       TagsOnPosts[]
+}
+
+model TagsOnPosts {
+  post        Post      @relation(fields: [postId], references: [id])
+  postId      String
+  tag         Tag       @relation(fields: [tagId], references: [id])
+  tagId       String
+
+  @@id([postId, tagId])
+}
+
+model Comment {
+  id          String    @id @default(cuid())
+  content     String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  author      User      @relation(fields: [authorId], references: [id])
+  authorId    String
+  post        Post      @relation(fields: [postId], references: [id])
+  postId      String
+}
+
+model ChatRoom {
+  id          String         @id @default(cuid())
+  name        String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  users       ChatRoomUser[]
+  messages    Message[]
+}
+
+model ChatRoomUser {
+  chatRoom    ChatRoom  @relation(fields: [chatRoomId], references: [id])
+  chatRoomId  String
+  user        User      @relation(fields: [userId], references: [id])
+  userId      String
+  joinedAt    DateTime  @default(now())
+
+  @@id([chatRoomId, userId])
+}
+
+model Message {
+  id          String    @id @default(cuid())
+  content     String
+  createdAt   DateTime  @default(now())
+  
+  author      User      @relation(fields: [authorId], references: [id])
+  authorId    String
+  chatRoom    ChatRoom  @relation(fields: [chatRoomId], references: [id])
+  chatRoomId  String
+}
+
+enum Role {
+  USER
+  ADMIN
+}

@@ -13,23 +13,34 @@ generator client {
   provider = "prisma-client-js"
 }
 
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
+  id            String        @id @default(cuid())
+  email         String        @unique
   name          String
   password      String
   profileImage  String?
-  role          Role      @default(USER)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // 블로그 관련
+  role          Role          @default(USER)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  
+  // 기존 관계
   posts         Post[]
   comments      Comment[]
-
-  // 채팅 관련
   messages      Message[]
-  chatRooms    ChatRoomUser[]
+  chatRooms     ChatRoomUser[]
+  
+  // 새로운 관계
+  refreshTokens RefreshToken[]
 }
 
 model Post {

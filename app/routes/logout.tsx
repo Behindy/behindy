@@ -1,5 +1,5 @@
 import { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { logout } from "../utils/session.server";
+import { logout } from "../utils/auth.server";
 
 export async function action({ request }: ActionFunctionArgs) {
   return logout(request);

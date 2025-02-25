@@ -1,9 +1,9 @@
 import { json, redirect, ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { Form, Link, useActionData, useSearchParams } from "@remix-run/react";
-import { login, createUserSession, getUser } from "../utils/session.server";
+import { login, createUserSession, authenticateUser } from "../utils/auth.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const user = await getUser(request);
+  const user = await authenticateUser(request);
   if (user) return redirect("/");
   return json({});
 }
@@ -30,12 +30,12 @@ export async function action({ request }: ActionFunctionArgs) {
     return json({ errors: { email: null, password: "Password is required" } }, { status: 400 });
   }
 
-  const user = await login({ email, password });
-  if (!user) {
+  const result = await login({ email, password });
+  if (!result) {
     return json({ errors: { email: "Invalid credentials", password: null } }, { status: 400 });
   }
 
-  return createUserSession(user.id, redirectTo);
+  return createUserSession(result.accessToken, result.sessionId, redirectTo);
 }
 
 export default function Login() {

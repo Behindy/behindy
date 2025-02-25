@@ -1,10 +1,10 @@
 import { json, redirect, ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { Form, Link, useActionData, useSearchParams } from "@remix-run/react";
-import { register, createUserSession, getUser } from "../utils/session.server";
+import { register, createUserSession, authenticateUser } from "../utils/auth.server";
 import { db } from "../utils/db.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const user = await getUser(request);
+  const user = await authenticateUser(request);
   if (user) return redirect("/");
   return json({});
 }
@@ -49,22 +49,23 @@ export async function action({ request }: ActionFunctionArgs) {
   const existingUser = await db.user.findUnique({ where: { email } });
   if (existingUser) {
     return json(
-      { errors: { email: "이미 사용 중인's 이메일입니다", password: null, name: null } },
+      { errors: { email: "이미 사용 중인 이메일입니다", password: null, name: null } },
       { status: 400 }
     );
   }
 
-  const user = await register({ email, password, name });
-  if (!user) {
+  const result = await register({ email, password, name });
+  if (!result) {
     return json(
       { errors: { email: "계정 생성 중 오류가 발생했습니다", password: null, name: null } },
       { status: 500 }
     );
   }
 
-  return createUserSession(user.id, redirectTo);
+  return createUserSession(result.accessToken, result.sessionId, redirectTo);
 }
 
+// JSX 부분은 그대로 유지
 export default function Register() {
   const actionData = useActionData<typeof action>();
   const [searchParams] = useSearchParams();

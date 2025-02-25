@@ -1,4 +1,4 @@
-import { json, LinksFunction, LoaderFunctionArgs } from "@remix-run/node";
+import { json, LoaderFunctionArgs } from "@remix-run/node";
 import {
   Links,
   LiveReload,
@@ -6,25 +6,19 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
-  // useLoaderData 제거 - 사용하지 않으므로
 } from "@remix-run/react";
-import styles from "./styles/tailwind.css";
-import { getUser } from "./utils/session.server"; // 경로 수정
+import { authenticateUser } from "./utils/auth.server";
 
-export const links: LinksFunction = () => [
-  { rel: "stylesheet", href: styles },
-];
+// CSS 직접 임포트
+import "./styles/tailwind.css";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   return json({
-    user: await getUser(request),
+    user: await authenticateUser(request),
   });
 }
 
 export default function App() {
-  // 사용하지 않는 변수는 제거
-  // const { user } = useLoaderData<typeof loader>();
-
   return (
     <html lang="ko" className="h-full">
       <head>

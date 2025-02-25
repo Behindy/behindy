@@ -1,9 +1,9 @@
 import { json, LoaderFunctionArgs } from "@remix-run/node";
 import { Link, useLoaderData } from "@remix-run/react";
-import { getUser } from "../utils/session.server";
+import { authenticateUser } from "../utils/auth.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const user = await getUser(request);
+  const user = await authenticateUser(request);
   return json({ user });
 }
 

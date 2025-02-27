@@ -8,6 +8,8 @@ import {
   verifyAccessToken, 
   verifyRefreshToken 
 } from "./jwt.server";
+import { getGoogleTokens, getGoogleUserInfo} from "./google.server";
+
 
 // 파일 상단에 타입 정의 추가
 type LoginForm = {
@@ -105,44 +107,51 @@ export async function authenticateUser(request: Request) {
 
 // 세션 ID를 사용해 리프레시 토큰 찾아 액세스 토큰 갱신
 async function refreshUserSession(sessionId: string, session: SessionData) {
-  // 사용자 ID로 가장 최근의 리프레시 토큰 찾기
-  const latestToken = await db.refreshToken.findFirst({
-    where: { userId: sessionId },
-    orderBy: { createdAt: 'desc' },
-    include: { user: true }
-  });
-  
-  if (!latestToken) return null;
-  
-  // 리프레시 토큰 검증
-  const payload = verifyRefreshToken(latestToken.token);
-  if (!payload) {
-    // 토큰이 유효하지 않으면 삭제
-    await db.refreshToken.delete({ where: { id: latestToken.id } });
+  try {
+    // 사용자 ID로 가장 최근의 리프레시 토큰 찾기
+    const latestToken = await db.refreshToken.findFirst({
+      where: { userId: sessionId },
+      orderBy: { createdAt: 'desc' },
+      include: { user: true }
+    });
+    
+    if (!latestToken) return null;
+    
+    // 리프레시 토큰 검증
+    const payload = verifyRefreshToken(latestToken.token);
+    if (!payload) {
+      // 토큰이 유효하지 않으면 삭제
+      try {
+        await db.refreshToken.delete({ where: { id: latestToken.id } });
+      } catch (error) {
+        console.error("Invalid token deletion error:", error);
+        // 오류가 발생해도 계속 진행
+      }
+      return null;
+    }
+    
+    // 새 액세스 토큰 발급
+    const newPayload = {
+      userId: latestToken.user.id,
+      email: latestToken.user.email,
+      role: latestToken.user.role
+    };
+    
+    const accessToken = generateAccessToken(newPayload);
+    
+    // 세션 업데이트
+    session.set("accessToken", accessToken);
+    
+    // 중요: 기존 리프레시 토큰 교체는 생략
+    // 이미 존재하는 토큰을 계속 사용
+    
+    // 사용자 정보 반환
+    return latestToken.user;
+  } catch (error) {
+    console.error("Session refresh error:", error);
     return null;
   }
-  
-  // 새 액세스 토큰 발급
-  const newPayload = {
-    userId: latestToken.user.id,
-    email: latestToken.user.email,
-    role: latestToken.user.role
-  };
-  
-  const accessToken = generateAccessToken(newPayload);
-  
-  // 리프레시 토큰 교체 (선택적 - 보안 강화)
-  const newRefreshToken = generateRefreshToken(newPayload);
-  await db.refreshToken.delete({ where: { id: latestToken.id } });
-  await saveRefreshToken(latestToken.user.id, newRefreshToken);
-  
-  // 세션 업데이트
-  session.set("accessToken", accessToken);
-  
-  // 사용자 정보 반환
-  return latestToken.user;
 }
-
 // 로그아웃 처리
 export async function logout(request: Request) {
   const session = await sessionStorage.getSession(request.headers.get("Cookie"));
@@ -223,4 +232,58 @@ export async function requireAuth(
   }
   
   return user;
+}
+
+// Google 로그인 처리
+export async function handleGoogleLogin(code: string) {
+  try {
+    // Google 인증 코드로 토큰 교환
+    const tokens = await getGoogleTokens(code);
+    const access_token = tokens.access_token;
+
+    // access_token이 undefined인 경우 예외 처리
+    if (!access_token) {
+      throw new Error('Google OAuth did not return an access token.');
+    }
+
+    // 액세스 토큰으로 사용자 정보 가져오기
+    const googleUser = await getGoogleUserInfo(access_token);
+    
+    // 이메일로 기존 사용자 확인
+    let user = await db.user.findUnique({
+      where: { email: googleUser.email }
+    });
+    
+    // 사용자가 없으면 새로 생성
+    if (!user) {
+      user = await db.user.create({
+        data: {
+          email: googleUser.email,
+          name: googleUser.name,
+          password: '', // 소셜 로그인은 비밀번호가 없음
+          profileImage: googleUser.picture
+        }
+      });
+    }
+    
+    // JWT 페이로드 생성
+    const payload = {
+      userId: user.id,
+      email: user.email,
+      role: user.role
+    };
+    
+    // 액세스 토큰 생성
+    const accessToken = generateAccessToken(payload);
+    
+    // 리프레시 토큰 생성 및 저장
+    const refreshToken = generateRefreshToken(payload);
+    await saveRefreshToken(user.id, refreshToken);
+    
+    // 세션 생성
+    return createUserSession(accessToken, refreshToken, '/');
+  } catch (error) {
+    console.error('Google login error:', error);
+    throw error;
+  }
 }

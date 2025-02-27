@@ -32,57 +32,60 @@ model User {
   role          Role          @default(USER)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
-  
-  // 기존 관계
   posts         Post[]
   comments      Comment[]
   messages      Message[]
   chatRooms     ChatRoomUser[]
-  
-  // 새로운 관계
   refreshTokens RefreshToken[]
 }
 
 model Post {
-  id          String      @id @default(cuid())
-  title       String
-  content     String      @db.Text
-  published   Boolean     @default(false)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  
-  author      User        @relation(fields: [authorId], references: [id])
-  authorId    String
-  
-  tags        TagsOnPosts[]
-  comments    Comment[]
+  id            String         @id @default(cuid())
+  title         String
+  slug          String         @unique
+  content       String
+  description   String?
+  published     Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  author        User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId      String
+  tags          TagsOnPosts[]
+  comments      Comment[]
+  views         Int            @default(0)
 }
 
 model Tag {
-  id          String       @id @default(cuid())
-  name        String       @unique
-  posts       TagsOnPosts[]
+  id        String         @id @default(cuid())
+  name      String         @unique
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  posts     TagsOnPosts[]  
 }
 
 model TagsOnPosts {
-  post        Post      @relation(fields: [postId], references: [id])
-  postId      String
-  tag         Tag       @relation(fields: [tagId], references: [id])
-  tagId       String
+  post       Post     @relation(fields: [postId], references: [id])
+  postId     String
+  tag        Tag      @relation(fields: [tagId], references: [id])
+  tagId      String
 
   @@id([postId, tagId])
 }
 
+
+// 댓글 모델
 model Comment {
-  id          String    @id @default(cuid())
-  content     String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  
-  author      User      @relation(fields: [authorId], references: [id])
-  authorId    String
-  post        Post      @relation(fields: [postId], references: [id])
-  postId      String
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId    String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId  String
+  parent    Comment? @relation("CommentToComment", fields: [parentId], references: [id], onDelete: Cascade)
+  parentId  String?
+  replies   Comment[] @relation("CommentToComment")
 }
 
 model ChatRoom {
@@ -119,4 +122,12 @@ model Message {
 enum Role {
   USER
   ADMIN
+}
+
+// 방문자 통계 모델
+model ViewStats {
+  id        String   @id @default(cuid())
+  date      DateTime @default(now()) @db.Date
+  pageView  Int      @default(0)
+  uniqueVisitors Int @default(0)
 }

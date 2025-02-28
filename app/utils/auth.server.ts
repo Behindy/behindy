@@ -208,11 +208,11 @@ export async function register({ email, password, name }: RegisterForm) {
 }
 
 // 인증 필요한 페이지에 대한 보호
+// 기존 requireAuth 유지 (글 작성, 편집 등에 사용)
 export async function requireAuth(
   request: Request,
   redirectTo: string = new URL(request.url).pathname
 ) {
-  const session = await sessionStorage.getSession(request.headers.get("Cookie"));
   const user = await authenticateUser(request);
   
   if (!user) {
@@ -221,18 +221,15 @@ export async function requireAuth(
     throw redirect(`/login?${searchParams}`);
   }
   
-  // 세션 갱신 필요시 쿠키 업데이트
-  const newCookie = await sessionStorage.commitSession(session);
-  if (newCookie !== request.headers.get("Cookie")) {
-    throw redirect(redirectTo, {
-      headers: {
-        "Set-Cookie": newCookie
-      },
-    });
-  }
-  
   return user;
 }
+
+// 추가: 블로그 접근용 함수 (로그인 필요 없음)
+export async function getBlogUser(request: Request) {
+  const user = await authenticateUser(request);
+  return user; // user가 null이어도 리다이렉트하지 않음
+}
+
 
 // Google 로그인 처리
 export async function handleGoogleLogin(code: string) {

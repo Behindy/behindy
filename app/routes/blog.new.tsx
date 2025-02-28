@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { db } from "../utils/db.server";
 import { requireAuth } from "../utils/auth.server";
 import { marked } from 'marked';
+import ImageUploader from "~/components/ImageUploader";
 
 // 서버에서 처리할 로더 함수
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -43,7 +44,7 @@ export async function action({ request }: ActionFunctionArgs) {
     typeof description !== "string"
   ) {
     return json(
-      { errors: { title: "Invalid form submission" } },
+      { errors: { title: "Invalid form submission", content: null } },
       { status: 400 }
     );
   }
@@ -145,6 +146,35 @@ export default function NewPost() {
     });
   };
   
+  // 이미지 삽입 처리 함수 추가
+  const handleImageInsert = (imageUrl: string) => {
+    const markdownImage = `![image](${imageUrl})`;
+    
+    // 현재 커서 위치에 이미지 마크다운 삽입
+    if (contentRef.current) {
+      const textarea = contentRef.current;
+      const startPos = textarea.selectionStart;
+      const endPos = textarea.selectionEnd;
+      
+      const newContent = 
+        content.substring(0, startPos) + 
+        markdownImage + 
+        content.substring(endPos);
+      
+      setContent(newContent);
+      
+      // 커서 위치 업데이트 (이미지 마크다운 뒤로)
+      setTimeout(() => {
+        textarea.focus();
+        const newCursorPos = startPos + markdownImage.length;
+        textarea.setSelectionRange(newCursorPos, newCursorPos);
+      }, 0);
+    } else {
+      // 텍스트 영역에 접근할 수 없는 경우 끝에 추가
+      setContent(prevContent => prevContent + '\n' + markdownImage);
+    }
+  };
+  
   return (
     <div className="max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">새 글 작성</h1>
@@ -178,6 +208,9 @@ export default function NewPost() {
             name="description"
             className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           />
+          <p className="mt-1 text-sm text-gray-500">
+            게시글 목록에서 카드의 설명으로 표시됩니다.
+          </p>
         </div>
         
         <div>
@@ -194,7 +227,7 @@ export default function NewPost() {
                     ? "bg-blue-100 text-blue-800"
                     : "bg-gray-100 text-gray-800"
                 }`}
-                >
+              >
                 작성하기
               </button>
               <button
@@ -205,11 +238,16 @@ export default function NewPost() {
                     ? "bg-blue-100 text-blue-800"
                     : "bg-gray-100 text-gray-800"
                 }`}
-                >
+              >
                 미리보기
               </button>
             </div>
           </div>
+          
+          {/* 이미지 업로드 컴포넌트 추가 */}
+          {!showPreview && (
+            <ImageUploader onImageInsert={handleImageInsert} />
+          )}
           
           {!showPreview ? (
             <textarea
@@ -241,7 +279,7 @@ export default function NewPost() {
             </div>
           )}
           <p className="mt-1 text-sm text-gray-500">
-            마크다운 형식으로 작성할 수 있습니다.
+            마크다운 형식으로 작성할 수 있습니다. 이미지는 카드의 썸네일로도 사용됩니다.
           </p>
         </div>
         

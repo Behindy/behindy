@@ -5,7 +5,8 @@ export default function Footer() {
         <div className="md:flex md:justify-between">
           <div className="mb-6 md:mb-0">
             <h2 className="text-lg font-bold">Behindy</h2>
-            <p className="mt-2 text-sm text-gray-300">블로그 & 채팅 포트폴리오</p>
+            <p className="mt-2 text-sm text-gray-300">깃허브</p>
+            <p className="mt-2 text-sm text-gray-300">블로그</p>
           </div>
           <div className="grid grid-cols-2 gap-8 sm:grid-cols-3">
             <div>

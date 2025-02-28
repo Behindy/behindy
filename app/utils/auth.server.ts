@@ -113,18 +113,24 @@ async function refreshUserSession(sessionId: string, session: SessionData) {
       where: { userId: sessionId },
       orderBy: { createdAt: 'desc' },
       include: { user: true }
+    }).catch(err => {
+      console.error("Error finding refresh token:", err);
+      return null;
     });
     
-    if (!latestToken) return null;
+    if (!latestToken) {
+      console.warn(`No refresh token found for session ID: ${sessionId}`);
+      return null;
+    }
     
     // 리프레시 토큰 검증
     const payload = verifyRefreshToken(latestToken.token);
     if (!payload) {
-      // 토큰이 유효하지 않으면 삭제
+      // 토큰이 유효하지 않으면 삭제 시도
       try {
         await db.refreshToken.delete({ where: { id: latestToken.id } });
-      } catch (error) {
-        console.error("Invalid token deletion error:", error);
+      } catch (deleteError) {
+        console.error("Invalid token deletion error:", deleteError);
         // 오류가 발생해도 계속 진행
       }
       return null;
@@ -149,9 +155,28 @@ async function refreshUserSession(sessionId: string, session: SessionData) {
     return latestToken.user;
   } catch (error) {
     console.error("Session refresh error:", error);
+    
+    // 데이터베이스 연결 오류인 경우에 대한 특별 처리
+    // Prisma 오류 코드를 확인하여 적절히 대응
+    if (error && typeof error === 'object' && 'code' in error) {
+      const prismaError = error as { code: string };
+      
+      if (prismaError.code === 'P1017') { // 서버 연결 닫힘
+        console.warn('Database connection lost during session refresh, maintaining current session');
+        // 연결 오류 시 null 반환 - 이후 인증 로직에서 적절히 처리
+        return null;
+      }
+      
+      if (prismaError.code === 'P2025') { // 레코드 찾을 수 없음
+        console.warn('Refresh token not found, session may have expired');
+        return null;
+      }
+    }
+    
     return null;
   }
 }
+
 // 로그아웃 처리
 export async function logout(request: Request) {
   const session = await sessionStorage.getSession(request.headers.get("Cookie"));
@@ -230,21 +255,22 @@ export async function getBlogUser(request: Request) {
   return user; // user가 null이어도 리다이렉트하지 않음
 }
 
-
 // Google 로그인 처리
 export async function handleGoogleLogin(code: string) {
   try {
     // Google 인증 코드로 토큰 교환
     const tokens = await getGoogleTokens(code);
-    const access_token = tokens.access_token;
-
-    // access_token이 undefined인 경우 예외 처리
-    if (!access_token) {
-      throw new Error('Google OAuth did not return an access token.');
+    
+    if (!tokens.access_token) {
+      throw new Error('Google OAuth 응답에 액세스 토큰이 없습니다.');
     }
 
-    // 액세스 토큰으로 사용자 정보 가져오기
-    const googleUser = await getGoogleUserInfo(access_token);
+    // 사용자 정보 가져오기
+    const googleUser = await getGoogleUserInfo(tokens.access_token);
+    
+    if (!googleUser || !googleUser.email) {
+      throw new Error('Google에서 사용자 정보를 가져오지 못했습니다.');
+    }
     
     // 이메일로 기존 사용자 확인
     let user = await db.user.findUnique({
@@ -253,11 +279,15 @@ export async function handleGoogleLogin(code: string) {
     
     // 사용자가 없으면 새로 생성
     if (!user) {
+      // 랜덤 비밀번호 생성 (소셜 로그인은 비밀번호가 사용되지 않지만 필드는 필요)
+      const randomPassword = Math.random().toString(36).slice(-10);
+      const hashedPassword = await bcrypt.hash(randomPassword, 10);
+      
       user = await db.user.create({
         data: {
           email: googleUser.email,
-          name: googleUser.name,
-          password: '', // 소셜 로그인은 비밀번호가 없음
+          name: googleUser.name || googleUser.email.split('@')[0],
+          password: hashedPassword,
           profileImage: googleUser.picture
         }
       });
@@ -277,10 +307,10 @@ export async function handleGoogleLogin(code: string) {
     const refreshToken = generateRefreshToken(payload);
     await saveRefreshToken(user.id, refreshToken);
     
-    // 세션 생성
-    return createUserSession(accessToken, refreshToken, '/');
+    // 세션 생성 및 리다이렉션
+    return createUserSession(accessToken, user.id, '/blog');
   } catch (error) {
-    console.error('Google login error:', error);
+    console.error('Google 로그인 오류:', error);
     throw error;
   }
 }

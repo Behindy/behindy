@@ -7,7 +7,7 @@
     "build": "remix vite:build",
     "dev": "remix vite:dev",
     "lint": "eslint --ignore-path .gitignore --cache --cache-location ./node_modules/.cache/eslint .",
-    "start": "remix-serve ./build/server/index.js",
+    "start": "dotenv -- remix-serve ./build/server/index.js",
     "typecheck": "tsc"
   },
   "dependencies": {
@@ -21,6 +21,7 @@
     "bcryptjs": "^3.0.2",
     "date-fns": "^2.30.0",
     "dompurify": "^3.2.4",
+    "dotenv": "^16.4.7",
     "google-auth-library": "^9.15.1",
     "highlight.js": "^11.11.1",
     "isbot": "^4.1.0",

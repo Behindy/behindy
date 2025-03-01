@@ -4,28 +4,37 @@ import { handleGoogleLogin } from "../utils/auth.server";
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
-
+  
+  console.log("Callback URL:", url.toString());
+  
   if (!code) {
+    console.error("No code provided in callback URL");
     return redirect("/login?error=no_code");
   }
   
   try {
-    // 이 부분에서 리다이렉션이 발생해야 함
-    return await handleGoogleLogin(code);
+    console.log("Handling Google login with code:", code.substring(0, 10) + "...");
+    
+    // 세션 생성 및 리디렉션 처리
+    const response = await handleGoogleLogin(code);
+    
+    // 응답 객체 내용 확인
+    console.log("Response headers:", Object.fromEntries(response.headers.entries()));
+    console.log("Response status:", response.status);
+    
+    return response;
   } catch (error) {
-    console.error("Google 인증 오류:", error);
+    console.error("Error during Google authentication:", error);
     return redirect("/login?error=auth_failed");
   }
 }
 
 export default function GoogleCallback() {
-  // const data = useLoaderData<typeof loader>();
-  
   return (
     <div className="flex justify-center items-center min-h-screen">
       <div className="text-center">
         <h1 className="text-2xl font-bold mb-4">인증 처리 중...</h1>
-        <p>잠시만 기다려주세요.</p>
+        <p>곧 리다이렉트됩니다.</p>
       </div>
     </div>
   );

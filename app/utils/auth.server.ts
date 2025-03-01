@@ -24,12 +24,13 @@ type RegisterForm = LoginForm & {
 // 세션 스토리지 설정
 export const sessionStorage = createCookieSessionStorage({
   cookie: {
-    name: "behindy",
+    name: "behindy_session",
     httpOnly: true,
     path: "/",
     sameSite: "lax",
-    secrets: ["s3cr3t"], // 실제 배포 시 환경 변수로 관리
+    secrets: ["s3cr3t"],
     secure: process.env.NODE_ENV === "production",
+    maxAge: 60 * 60 * 24 * 7, // 1주일
   },
 });
 
@@ -69,6 +70,9 @@ export async function createUserSession(accessToken: string, sessionId: string, 
   const session = await sessionStorage.getSession();
   session.set("accessToken", accessToken);
   session.set("sessionId", sessionId);
+  
+  // 디버깅 로그 추가
+  console.log(`Session created, redirecting to: ${redirectTo}`);
   
   return redirect(redirectTo, {
     headers: {
@@ -260,17 +264,14 @@ export async function handleGoogleLogin(code: string) {
   try {
     // Google 인증 코드로 토큰 교환
     const tokens = await getGoogleTokens(code);
-    
-    if (!tokens.access_token) {
-      throw new Error('Google OAuth 응답에 액세스 토큰이 없습니다.');
+    const access_token = tokens.access_token;
+
+    if (!access_token) {
+      throw new Error('Google OAuth did not return an access token.');
     }
 
     // 사용자 정보 가져오기
-    const googleUser = await getGoogleUserInfo(tokens.access_token);
-    
-    if (!googleUser || !googleUser.email) {
-      throw new Error('Google에서 사용자 정보를 가져오지 못했습니다.');
-    }
+    const googleUser = await getGoogleUserInfo(access_token);
     
     // 이메일로 기존 사용자 확인
     let user = await db.user.findUnique({
@@ -279,15 +280,11 @@ export async function handleGoogleLogin(code: string) {
     
     // 사용자가 없으면 새로 생성
     if (!user) {
-      // 랜덤 비밀번호 생성 (소셜 로그인은 비밀번호가 사용되지 않지만 필드는 필요)
-      const randomPassword = Math.random().toString(36).slice(-10);
-      const hashedPassword = await bcrypt.hash(randomPassword, 10);
-      
       user = await db.user.create({
         data: {
           email: googleUser.email,
-          name: googleUser.name || googleUser.email.split('@')[0],
-          password: hashedPassword,
+          name: googleUser.name,
+          password: '', // 소셜 로그인은 비밀번호가 없음
           profileImage: googleUser.picture
         }
       });
@@ -307,10 +304,13 @@ export async function handleGoogleLogin(code: string) {
     const refreshToken = generateRefreshToken(payload);
     await saveRefreshToken(user.id, refreshToken);
     
-    // 세션 생성 및 리다이렉션
-    return createUserSession(accessToken, user.id, '/blog');
+    console.log("Google login successful, redirecting to home");
+    
+    // 세션 생성 및 홈페이지로 리디렉트
+    // 명시적으로 redirectTo를 root path로 지정
+    return createUserSession(accessToken, user.id, "/");
   } catch (error) {
-    console.error('Google 로그인 오류:', error);
+    console.error('Google login error:', error);
     throw error;
   }
 }

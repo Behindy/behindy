@@ -206,10 +206,6 @@ export default function ComposePost() {
                   </div>
                 </div>
               </div>
-              
-              <p className="mt-1 text-sm text-gray-500">
-                마크다운 형식으로 작성할 수 있습니다. 첫 번째 이미지는 카드의 썸네일로 사용됩니다.
-              </p>
             </div>
             
             {/* 버튼 영역 */}
@@ -221,7 +217,7 @@ export default function ComposePost() {
                   (isSubmitting || !content.trim()) ? "opacity-50 cursor-not-allowed" : ""
                 }`}
               >
-                {isSubmitting ? "처리 중..." : "다음: 정보 입력하기"}
+                {isSubmitting ? "처리 중..." : "게시하기"}
               </button>
             </div>
           </Form>

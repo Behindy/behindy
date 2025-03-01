@@ -1,4 +1,3 @@
-// app/components/ImageUploader.tsx
 import { useState, useRef } from "react";
 import { Camera, Upload, X } from "lucide-react";
 

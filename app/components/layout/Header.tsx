@@ -1,4 +1,6 @@
-import { Link, useLoaderData, Form } from "@remix-run/react";
+import { Link, useLoaderData, Form, useSubmit, useSearchParams } from "@remix-run/react";
+import { useState, useEffect, useRef } from "react";
+import { Search } from "lucide-react";
 
 // 사용자 타입 정의
 interface User {
@@ -16,6 +18,28 @@ interface LoaderData {
 export default function Header() {
   // 로더 데이터에서 사용자 정보 가져오기
   const { user } = useLoaderData<LoaderData>();
+  const [searchParams] = useSearchParams();
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState(searchParams.get("q") || "");
+  const submit = useSubmit();
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  
+  useEffect(() => {
+    if (isSearchOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [isSearchOpen]);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (searchTerm.trim()) {
+      const params = new URLSearchParams();
+      params.set("q", searchTerm);
+      submit(`/blog?${params.toString()}`, { replace: true });
+      setIsSearchOpen(false);
+    }
+  };
   
   return (
     <header className="bg-white shadow">
@@ -39,7 +63,39 @@ export default function Header() {
                 </Link>
             </nav>
           </div>
-          <div className="flex items-center">
+          
+          <div className="flex items-center space-x-2">
+            {/* 검색창 */}
+            {isSearchOpen ? (
+              <Form onSubmit={handleSearch} className="relative">
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="검색..."
+                  className="w-48 sm:w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                />
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <Search size={16} className="text-gray-400" />
+                </div>
+                <button 
+                  type="button" 
+                  onClick={() => setIsSearchOpen(false)}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  &times;
+                </button>
+              </Form>
+            ) : (
+              <button
+                onClick={() => setIsSearchOpen(true)}
+                className="p-2 text-gray-600 hover:text-blue-600 focus:outline-none"
+              >
+                <Search size={20} />
+              </button>
+            )}
+            
             {user ? (
               <div className="flex items-center space-x-4">
                 {user && (

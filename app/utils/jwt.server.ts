@@ -1,14 +1,11 @@
-// app/utils/jwt.server.ts
 import jwt from 'jsonwebtoken';
 import { db } from './db.server';
 
-// 비밀키는 환경변수로 관리해야 합니다
 const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || 'access-token-secret';
 const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || 'refresh-token-secret';
 
-const ACCESS_TOKEN_EXPIRY = '15m'; // 액세스 토큰 15분 유효
-const REFRESH_TOKEN_EXPIRY = '7d'; // 리프레시 토큰 7일 유효
-
+const ACCESS_TOKEN_EXPIRY = '15m';
+const REFRESH_TOKEN_EXPIRY = '7d';
 type TokenPayload = {
   userId: string;
   email: string;

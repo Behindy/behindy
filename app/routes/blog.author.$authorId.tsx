@@ -1,61 +1,50 @@
-// blog._index.tsx - 개선된 블로그 게시글 목록
 import { json, LoaderFunctionArgs } from "@remix-run/node";
 import { Link, useLoaderData, useSearchParams } from "@remix-run/react";
 import { db } from "../utils/db.server";
 import { formatDate } from "../utils/format";
 import { Eye } from "lucide-react";
-import { Prisma } from '@prisma/client';
+import invariant from "tiny-invariant";
 
-export async function loader({ request }: LoaderFunctionArgs) {
+export async function loader({ request, params }: LoaderFunctionArgs) {
+  const { authorId } = params;
+  invariant(authorId, "Author ID is required");
+
   const searchParams = new URL(request.url).searchParams;
   const page = Number(searchParams.get("page") || "1");
   const limit = 12; // 한 페이지에 표시할 카드 수
   const skip = (page - 1) * limit;
-  
-  // 검색어 및 정렬 기준 가져오기
-  const searchQuery = searchParams.get("q") || "";
-  const tagQuery = searchParams.get("tag") || "";
   const sortOrder = searchParams.get("sort") || "latest"; // 기본값은 최신순
   
-  // 검색 조건 구성
-  let whereCondition: Prisma.PostWhereInput = {
-    published: true
-  };
-  
-  // 검색어가 있는 경우 검색 조건 추가
-  if (searchQuery) {
-    whereCondition = {
-      ...whereCondition,
-      OR: [
-        { title: { contains: searchQuery, mode: 'insensitive' as Prisma.QueryMode } },
-        { content: { contains: searchQuery, mode: 'insensitive' as Prisma.QueryMode } },
-        { description: { contains: searchQuery, mode: 'insensitive' as Prisma.QueryMode } }
-      ]
-    };
-  }
-  
-  // 태그 검색이 있는 경우 검색 조건 추가
-  if (tagQuery) {
-    whereCondition = {
-      ...whereCondition,
-      tags: {
-        some: {
-          tag: {
-            name: { contains: tagQuery, mode: 'insensitive' as Prisma.QueryMode }
-          }
+  // 작성자 정보 가져오기
+  const author = await db.user.findUnique({
+    where: { id: authorId },
+    select: {
+      id: true,
+      name: true,
+      profileImage: true,
+      _count: {
+        select: {
+          posts: { where: { published: true } }
         }
       }
-    };
+    }
+  });
+
+  if (!author) {
+    throw new Response("작성자를 찾을 수 없습니다", { status: 404 });
   }
-  
+
   // 정렬 기준 설정
-  const orderBy: Prisma.PostOrderByWithRelationInput = sortOrder === "views" 
-    ? { views: "desc" } 
-    : { createdAt: "desc" };
-  
-  // 게시글 조회
+  const orderBy = sortOrder === "views" 
+    ? { views: "desc" as const } 
+    : { createdAt: "desc" as const };
+
+  // 작성자의 게시글 목록 가져오기
   const posts = await db.post.findMany({
-    where: whereCondition,
+    where: { 
+      authorId,
+      published: true
+    },
     orderBy,
     skip,
     take: limit,
@@ -67,13 +56,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
       content: true,
       createdAt: true,
       views: true,
-      author: {
-        select: {
-          id: true,
-          name: true,
-          profileImage: true,
-        },
-      },
       tags: {
         select: {
           tag: {
@@ -89,20 +71,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
   
   // 총 게시글 수 조회
   const count = await db.post.count({
-    where: whereCondition,
+    where: { 
+      authorId,
+      published: true
+    },
   });
   
   return json({
+    author,
     posts,
     pagination: {
       page,
       totalPages: Math.ceil(count / limit),
       totalItems: count,
-    },
-    query: {
-      search: searchQuery,
-      tag: tagQuery,
-      sort: sortOrder
     }
   });
 }
@@ -139,42 +120,77 @@ const cardColors = [
   'bg-orange-100',
 ];
 
-// 로더 데이터 타입 정의
-
-export default function BlogIndex() {
-  const { posts, pagination, query } = useLoaderData<typeof loader>();
+export default function AuthorPosts() {
+  const { author, posts, pagination } = useLoaderData<typeof loader>();
   const [searchParams] = useSearchParams();
   
+  const setSortOrder = (order: string) => {
+    const params = new URLSearchParams(searchParams);
+    params.set("sort", order);
+    return `?${params.toString()}`;
+  };
+
   return (
     <div>
-      {/* 검색 결과가 없을 때 */}
-      {posts.length === 0 && (query.search || query.tag) && (
+      {/* 작성자 정보 헤더 */}
+      <div className="mb-8">
+        <div className="flex items-center gap-4">
+          {author.profileImage ? (
+            <img 
+              src={author.profileImage} 
+              alt={author.name}
+              className="w-16 h-16 rounded-full object-cover"
+            />
+          ) : (
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+              <span className="text-2xl font-semibold text-blue-600">{author.name.charAt(0)}</span>
+            </div>
+          )}
+          <div>
+            <h1 className="text-2xl font-bold">{author.name}</h1>
+            <p className="text-gray-600">작성한 글 {author._count.posts}개</p>
+          </div>
+        </div>
+        
+        {/* 정렬 버튼 */}
+        <div className="flex justify-end mt-4">
+          <div className="flex items-center gap-1">
+            <Link
+              to={setSortOrder("latest")}
+              className={`px-3 py-2 rounded-md text-sm font-medium ${
+                searchParams.get("sort") !== "views" 
+                  ? "bg-blue-100 text-blue-700"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              최신순
+            </Link>
+            <Link
+              to={setSortOrder("views")}
+              className={`px-3 py-2 rounded-md text-sm font-medium ${
+                searchParams.get("sort") === "views" 
+                  ? "bg-blue-100 text-blue-700"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              조회수
+            </Link>
+          </div>
+        </div>
+      </div>
+      
+      {/* 게시글이 없을 때 */}
+      {posts.length === 0 && (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
-          <h2 className="text-xl font-medium text-gray-700">검색 결과가 없습니다</h2>
+          <h2 className="text-xl font-medium text-gray-700">게시글이 없습니다</h2>
           <p className="mt-1 text-gray-500">
-            {query.search ? `${query.search}에 대한 ` : ''}
-            {query.tag ? `${query.tag}에 대한 ` : ''}
-            검색 결과가 없습니다.
+            {author.name}님이 작성한 게시글이 없습니다.
           </p>
           <Link 
             to="/blog" 
             className="mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
             모든 게시글 보기
-          </Link>
-        </div>
-      )}
-      
-      {/* 게시글이 없을 때 (검색이 아닌 경우) */}
-      {posts.length === 0 && !query.search && !query.tag && (
-        <div className="text-center py-12">
-          <h2 className="text-xl font-medium text-gray-900">아직 작성된 글이 없습니다</h2>
-          <p className="mt-1 text-gray-500">새로운 글을 작성해 보세요!</p>
-          <Link 
-            to="/compose" 
-            className="mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
-            새 글 작성하기
           </Link>
         </div>
       )}
@@ -244,33 +260,13 @@ export default function BlogIndex() {
                     </div>
                     
                     {/* 하단 정보 */}
-                    <div className="mt-4">
-                      <div className="flex items-center text-sm text-gray-500">
-                        <Link 
-                          to={`/blog/author/${post.author.id}`}
-                          onClick={(e) => e.stopPropagation()} 
-                          className="flex items-center mr-3 min-w-0 max-w-[50%] hover:text-blue-600 transition-colors"
-                        >
-                          {post.author.profileImage ? (
-                            <img 
-                              src={post.author.profileImage} 
-                              alt={post.author.name}
-                              className="w-5 h-5 rounded-full mr-2 flex-shrink-0"
-                            />
-                          ) : (
-                            <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center mr-2 flex-shrink-0">
-                              <span className="text-xs">{post.author.name.charAt(0)}</span>
-                            </div>
-                          )}
-                          <span className="truncate">{post.author.name}</span>
-                        </Link>                          
-                        <div className="flex items-center justify-end space-x-3 flex-shrink-0 ml-auto">
-                          <span className="flex items-center whitespace-nowrap">
-                            <Eye size={14} className="mr-1 flex-shrink-0" />
-                            {post.views}
-                          </span>
-                          <span className="whitespace-nowrap">{formatDate(post.createdAt)}</span>
+                    <div className="mt-2">
+                      <div className="flex items-center justify-between text-sm text-gray-500">
+                        <div className="flex items-center">
+                          <Eye size={14} className="mr-1" />
+                          <span>{post.views}</span>
                         </div>
+                        <span>{formatDate(post.createdAt)}</span>
                       </div>
                     </div>
                   </div>

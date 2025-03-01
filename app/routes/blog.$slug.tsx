@@ -224,7 +224,7 @@ export default function BlogPost() {
           
           <div className="flex justify-between items-center text-sm text-gray-500 mb-4">
             <div className="flex items-center space-x-2">
-              <div className="flex items-center">
+              <Link to={`/blog/author/${post.author.id}`} className="flex items-center hover:text-blue-600 transition-colors">
                 {post.author.profileImage ? (
                   <img 
                     src={post.author.profileImage}
@@ -237,7 +237,7 @@ export default function BlogPost() {
                   </div>
                 )}
                 <span>{post.author.name}</span>
-              </div>
+              </Link>
               <span>·</span>
               <time dateTime={post.createdAt}>{formatDateTime(post.createdAt)}</time>
               <span>·</span>
@@ -272,8 +272,9 @@ export default function BlogPost() {
           
           <hr className="my-6" />
         </header>
-        
-        <div dangerouslySetInnerHTML={{ __html: post.content }} />
+        {// @ts-expect-error - 외부 라이브러리와 함께 사용할 때 발생하는 타입 문제
+          <div dangerouslySetInnerHTML={{ __html: post.content }} />
+        }
       </article>
       
       {/* 댓글 섹션 */}

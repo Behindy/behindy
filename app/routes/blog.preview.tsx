@@ -1,4 +1,3 @@
-// blog.preview.tsx - 제목/설명 작성 및 미리보기 페이지
 import { json, redirect, ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { Form, Link, useLoaderData, useSearchParams, useSubmit } from "@remix-run/react";
 import { useEffect, useRef, useState } from "react";
@@ -302,7 +301,7 @@ export default function PreviewPost() {
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     rows={2}
-                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 resize-none"
                     placeholder="게시글 목록에 표시될 간단한 설명을 입력하세요"
                   />
                 </div>
@@ -321,7 +320,7 @@ export default function PreviewPost() {
                       onChange={handleTagInputChange}
                       onKeyDown={handleTagInputKeyDown}
                       onBlur={addTag}
-                      placeholder="#태그입력 (엔터로 추가)"
+                      placeholder="#태그입력 (ex. #behindy)"
                       className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     />
                     
@@ -384,13 +383,13 @@ export default function PreviewPost() {
                       className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                     <label htmlFor="published" className="ml-2 block text-sm text-gray-700">
-                      바로 발행하기
+                      바로 게시하기
                     </label>
                   </div>
                   
                   <p className="text-xs text-gray-500">
                     {published 
-                      ? "게시글이 즉시 발행되어 모든 사용자에게 공개됩니다." 
+                      ? "게시글이 즉시 게시시되어 모든 사용자에게 공개됩니다." 
                       : "게시글이 임시저장되며 다른 사용자에게 보이지 않습니다."}
                   </p>
                 </div>
@@ -408,7 +407,7 @@ export default function PreviewPost() {
                     type="submit"
                     className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                   >
-                    {published ? "발행하기" : "임시저장"}
+                    {published ? "게시하기" : "임시저장"}
                   </button>
                 </div>
               </div>

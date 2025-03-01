@@ -334,6 +334,7 @@ export default function EditPost() {
           ) : (
             <div className="w-full h-96 overflow-auto p-4 border rounded-md bg-gray-50 prose">
               {content ? (
+                // @ts-expect-error - 외부 라이브러리와 함께 사용할 때 발생하는 타입 문제
                 <div dangerouslySetInnerHTML={{ __html: marked(content) }} />
               ) : (
                 <p className="text-gray-400">내용을 입력하면 미리보기가 표시됩니다.</p>

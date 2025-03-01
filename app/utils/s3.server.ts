@@ -1,4 +1,3 @@
-// app/utils/s3.server.ts
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import sharp from "sharp";
 import { v4 as uuidv4 } from "uuid";

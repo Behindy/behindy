@@ -1,4 +1,3 @@
-// app/routes/api/upload-image.tsx
 import { ActionFunctionArgs, json } from "@remix-run/node";
 import { requireAuth } from "../utils/auth.server";
 import { uploadImageToS3 } from "../utils/s3.server";

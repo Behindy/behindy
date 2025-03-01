@@ -1,6 +1,7 @@
 import { Link, useLoaderData, Form, useSubmit, useSearchParams } from "@remix-run/react";
 import { useState, useEffect, useRef } from "react";
 import { Search } from "lucide-react";
+import { useBlog } from "../../context/BlogContext";
 
 // 사용자 타입 정의
 interface User {
@@ -20,9 +21,11 @@ export default function Header() {
   const { user } = useLoaderData<LoaderData>();
   const [searchParams] = useSearchParams();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState(searchParams.get("q") || "");
   const submit = useSubmit();
   const searchInputRef = useRef<HTMLInputElement>(null);
+  
+  // BlogContext 사용
+  const { searchTerm, setSearchTerm } = useBlog();
   
   useEffect(() => {
     if (isSearchOpen && searchInputRef.current) {
@@ -30,11 +33,16 @@ export default function Header() {
     }
   }, [isSearchOpen]);
 
+  // URL의 검색 쿼리가 변경되면 검색어 상태 업데이트
+  useEffect(() => {
+    setSearchTerm(searchParams.get("q") || "");
+  }, [searchParams, setSearchTerm]);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (searchTerm.trim()) {
-      const params = new URLSearchParams();
+      const params = new URLSearchParams(searchParams);
       params.set("q", searchTerm);
       submit(`/blog?${params.toString()}`, { replace: true });
       setIsSearchOpen(false);

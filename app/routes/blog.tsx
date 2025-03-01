@@ -1,54 +1,31 @@
-// blog.tsx - 개선된 블로그 레이아웃 파일 (검색창 제거)
 import { json, LoaderFunctionArgs } from "@remix-run/node";
-import { Outlet, useSearchParams, useSubmit } from "@remix-run/react";
+import { Outlet, useSearchParams } from "@remix-run/react";
 import { authenticateUser } from "../utils/auth.server";
 import MainLayout from "../components/layout/MainLayout";
+import PostSortButtons from "../components/PostSortButtons";
+import { useBlog } from "../context/BlogContext";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const user = await authenticateUser(request);
   return json({ user });
 }
 
+// 블로그 레이아웃 컴포넌트
 export default function BlogLayout() {
   const [searchParams] = useSearchParams();
-  const submit = useSubmit();
-
-  const setSortOrder = (order: string) => {
-    const params = new URLSearchParams(searchParams);
-    params.set("sort", order);
-    submit(params.toString() ? `?${params.toString()}` : ".", { replace: true });
-  };
-
+  const { showMainSortUI } = useBlog();
+  
   return (
     <MainLayout>
       <div className="max-w-5xl mx-auto">
-        <div className="mb-8 border-b pb-5">
-          {/* 필터링 UI */}
-          <div className="flex justify-end items-center gap-2">
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setSortOrder("latest")}
-                className={`px-3 py-2 rounded-md text-sm font-medium ${
-                  searchParams.get("sort") !== "views" 
-                    ? "bg-blue-100 text-blue-700"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                최신순
-              </button>
-              <button
-                onClick={() => setSortOrder("views")}
-                className={`px-3 py-2 rounded-md text-sm font-medium ${
-                  searchParams.get("sort") === "views" 
-                    ? "bg-blue-100 text-blue-700"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                조회수
-              </button>
+        {/* 메인 정렬 UI - 컨텍스트에 따라 표시 여부 결정 */}
+        {showMainSortUI && (
+          <div className="mb-8 border-b pb-5">
+            <div className="flex justify-end items-center gap-2">
+              <PostSortButtons baseUrl="/blog" />
             </div>
           </div>
-        </div>
+        )}
         
         {/* 검색 결과 표시 */}
         {(searchParams.get("q") || searchParams.get("tag")) && (

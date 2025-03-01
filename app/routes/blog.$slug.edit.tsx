@@ -1,17 +1,20 @@
 import { json, redirect, ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { Form, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
+import { Form, useActionData, useLoaderData, useNavigation, useNavigate } from "@remix-run/react";
 import { useEffect, useRef, useState } from "react";
 import { db } from "../utils/db.server";
 import { requireAuth } from "../utils/auth.server";
 import invariant from "tiny-invariant";
 import { marked } from 'marked';
+import ImageUploader from "../components/ImageUploader";
 
 // 액션 데이터 인터페이스
 interface ActionData {
   errors?: {
     title: string | null;
     content: string | null;
+    general?: string | null;
   };
+  success?: string;
 }
 
 // 포스트 데이터 인터페이스
@@ -63,7 +66,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   }
 
   // 작성자만 수정 가능
-  if (post.authorId !== user.id) {
+  if (post.authorId !== user.id && user.role !== "ADMIN") {
     throw new Response("Unauthorized", { status: 403 });
   }
 
@@ -105,28 +108,18 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 
   // 작성자만 수정 가능
-  if (post.authorId !== user.id) {
+  if (post.authorId !== user.id && user.role !== "ADMIN") {
     throw new Response("Unauthorized", { status: 403 });
   }
 
   const formData = await request.formData();
-  const title = formData.get("title");
-  const content = formData.get("content");
-  const description = formData.get("description");
+  const title = formData.get("title") as string;
+  const content = formData.get("content") as string;
+  const description = formData.get("description") as string;
   const published = formData.get("published") === "true";
   const selectedTags = formData.getAll("tags").map(tag => tag.toString());
 
-  if (
-    typeof title !== "string" ||
-    typeof content !== "string" ||
-    typeof description !== "string"
-  ) {
-    return json(
-      { errors: { title: "Invalid form submission", content: null } },
-      { status: 400 }
-    );
-  }
-
+  // 유효성 검증
   const errors = {
     title: title ? null : "제목을 입력해주세요",
     content: content ? null : "내용을 입력해주세요",
@@ -134,81 +127,95 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
   const hasErrors = Object.values(errors).some(Boolean);
   if (hasErrors) {
-    return json({ errors }, { status: 400 });
+    return json<ActionData>({ errors }, { status: 400 });
   }
 
-  // 제목이 변경되었을 경우에만 slug 업데이트
-  let newSlug = slug;
-  if (title !== post.title) {
-    // 초기 slug 생성
-    newSlug = createSlug(title);
+  try {
+    // 제목이 변경되었을 경우에만 slug 업데이트
+    let newSlug = slug;
+    if (title !== post.title) {
+      // 초기 slug 생성
+      newSlug = createSlug(title);
 
-    // slug 중복 확인 (현재 포스트 제외)
-    let existingPost = await db.post.findFirst({
-      where: { 
+      // slug 중복 확인 (현재 포스트 제외)
+      let existingPost = await db.post.findFirst({
+        where: { 
+          slug: newSlug,
+          id: { not: post.id }
+        },
+      });
+
+      // slug가 중복되면 숫자 추가
+      if (existingPost) {
+        let counter = 1;
+        while (existingPost) {
+          newSlug = `${createSlug(title)}-${counter}`;
+          existingPost = await db.post.findFirst({
+            where: { 
+              slug: newSlug,
+              id: { not: post.id }
+            },
+          });
+          counter++;
+        }
+      }
+    }
+    
+    // 먼저 기존 태그 관계 삭제
+    await db.tagsOnPosts.deleteMany({
+      where: {
+        postId: post.id
+      }
+    });
+
+    // 포스트 업데이트 (태그 없이)
+    const updatedPost = await db.post.update({
+      where: { id: post.id },
+      data: {
+        title,
         slug: newSlug,
-        id: { not: post.id }
+        content,
+        description,
+        published,
       },
     });
 
-    // slug가 중복되면 숫자 추가
-    if (existingPost) {
-      let counter = 1;
-      while (existingPost) {
-        newSlug = `${createSlug(title)}-${counter}`;
-        existingPost = await db.post.findFirst({
-          where: { 
-            slug: newSlug,
-            id: { not: post.id }
-          },
+    // 선택된 태그들에 대해 태그-포스트 관계 생성
+    for (const tagName of selectedTags) {
+      // 태그 찾기 또는 생성
+      let tag = await db.tag.findUnique({
+        where: { name: tagName }
+      });
+      
+      if (!tag) {
+        tag = await db.tag.create({
+          data: { name: tagName }
         });
-        counter++;
       }
-    }
-  }
-  
-  // 먼저 기존 태그 관계 삭제
-  await db.tagsOnPosts.deleteMany({
-    where: {
-      postId: post.id
-    }
-  });
-
-  // 포스트 업데이트 (태그 없이)
-  const updatedPost = await db.post.update({
-    where: { id: post.id },
-    data: {
-      title,
-      slug: newSlug,
-      content,
-      description,
-      published,
-    },
-  });
-
-  // 선택된 태그들에 대해 태그-포스트 관계 생성
-  for (const tagName of selectedTags) {
-    // 태그 찾기 또는 생성
-    let tag = await db.tag.findUnique({
-      where: { name: tagName }
-    });
-    
-    if (!tag) {
-      tag = await db.tag.create({
-        data: { name: tagName }
+      
+      // 태그와 포스트 연결
+      await db.tagsOnPosts.create({
+        data: {
+          postId: updatedPost.id,
+          tagId: tag.id
+        }
       });
     }
-    
-    // 태그와 포스트 연결
-    await db.tagsOnPosts.create({
-      data: {
-        postId: updatedPost.id,
-        tagId: tag.id
-      }
-    });
-  }
 
-  return redirect(`/blog/${updatedPost.slug}`);
+    return redirect(`/blog/${updatedPost.slug}`);
+  } catch (error) {
+    console.error("게시글 수정 오류:", error);
+    return json<ActionData>(
+      { 
+        errors: { 
+          title: null, 
+          content: null,
+          general: "게시글 수정 중 오류가 발생했습니다." 
+        } 
+      },
+      { status: 500 }
+    );
+  }
 }
 
 export default function EditPost() {
@@ -218,6 +225,7 @@ export default function EditPost() {
   
   const actionData = useActionData<ActionData>();
   const navigation = useNavigation();
+  const navigate = useNavigate();
   const isSubmitting = navigation.state === "submitting";
 
   const [selectedTags, setSelectedTags] = useState<string[]>(
@@ -225,6 +233,7 @@ export default function EditPost() {
   );
   const [showPreview, setShowPreview] = useState(false);
   const [content, setContent] = useState(typedPost.content);
+  const [newTagInput, setNewTagInput] = useState("");
 
   const titleRef = useRef<HTMLInputElement>(null);
   const contentRef = useRef<HTMLTextAreaElement>(null);
@@ -249,9 +258,56 @@ export default function EditPost() {
     });
   };
 
+  // 새 태그 추가
+  const addNewTag = () => {
+    if (newTagInput.trim() && !selectedTags.includes(newTagInput.trim())) {
+      setSelectedTags(prev => [...prev, newTagInput.trim()]);
+      setNewTagInput("");
+    }
+  };
+  
+  // 이미지 삽입 처리 함수
+  const handleImageInsert = (imageUrl: string) => {
+    const markdownImage = `![image](${imageUrl})`;
+    
+    if (contentRef.current) {
+      const textarea = contentRef.current;
+      const startPos = textarea.selectionStart;
+      const endPos = textarea.selectionEnd;
+      
+      const newContent = 
+        content.substring(0, startPos) + 
+        markdownImage + 
+        content.substring(endPos);
+      
+      setContent(newContent);
+      
+      setTimeout(() => {
+        textarea.focus();
+        const newCursorPos = startPos + markdownImage.length;
+        textarea.setSelectionRange(newCursorPos, newCursorPos);
+      }, 0);
+    } else {
+      setContent(prevContent => prevContent + '\n' + markdownImage);
+    }
+  };
+
+  // 취소 처리
+  const handleCancel = () => {
+    if (confirm("변경 사항이 저장되지 않을 수 있습니다. 정말 취소하시겠습니까?")) {
+      navigate(`/blog/${typedPost.slug}`);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">게시글 수정</h1>
+
+      {actionData?.errors?.general && (
+        <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-md">
+          {actionData.errors.general}
+        </div>
+      )}
 
       <Form method="post" className="space-y-6">
         <div>
@@ -317,6 +373,9 @@ export default function EditPost() {
             </div>
           </div>
 
+          {/* 이미지 업로더 */}
+          <ImageUploader onImageInsert={handleImageInsert} />
+
           {!showPreview ? (
             <textarea
               ref={contentRef}
@@ -379,24 +438,50 @@ export default function EditPost() {
               <input
                 type="text"
                 id="newTag"
+                value={newTagInput}
+                onChange={(e) => setNewTagInput(e.target.value)}
                 className="block w-full rounded-md border-gray-300 sm:text-sm"
                 placeholder="태그 입력 후 추가 버튼 클릭"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addNewTag();
+                  }
+                }}
               />
               <button
                 type="button"
-                onClick={() => {
-                  const input = document.getElementById("newTag") as HTMLInputElement;
-                  if (input.value.trim()) {
-                    toggleTag(input.value.trim());
-                    input.value = "";
-                  }
-                }}
+                onClick={addNewTag}
                 className="ml-2 inline-flex items-center rounded border border-transparent bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
               >
                 추가
               </button>
             </div>
           </div>
+          
+          {/* 사용자 선택 태그 미리보기 */}
+          {selectedTags.length > 0 && (
+            <div className="mt-4">
+              <p className="text-sm text-gray-700 mb-2">선택된 태그:</p>
+              <div className="flex flex-wrap gap-2">
+                {selectedTags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-md flex items-center"
+                  >
+                    {tag}
+                    <button
+                      type="button"
+                      onClick={() => toggleTag(tag)}
+                      className="ml-1 text-blue-600 hover:text-blue-800"
+                    >
+                      &times;
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div>
@@ -418,7 +503,7 @@ export default function EditPost() {
         <div className="flex justify-end space-x-4">
           <button
             type="button"
-            onClick={() => window.history.back()}
+            onClick={handleCancel}
             className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
           >
             취소

@@ -1,4 +1,3 @@
-// blog.compose.tsx - 게시글 작성 페이지 (콘텐츠만 작성)
 import { json, redirect, ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { Form, useActionData, useNavigation, Link, useLoaderData } from "@remix-run/react";
 import { useEffect, useRef, useState } from "react";

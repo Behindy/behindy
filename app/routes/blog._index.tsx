@@ -1,10 +1,11 @@
-// blog._index.tsx - 개선된 블로그 게시글 목록
 import { json, LoaderFunctionArgs } from "@remix-run/node";
 import { Link, useLoaderData, useSearchParams } from "@remix-run/react";
 import { db } from "../utils/db.server";
 import { formatDate } from "../utils/format";
 import { Eye } from "lucide-react";
 import { Prisma } from '@prisma/client';
+import { useEffect } from "react";
+import { useBlog } from "../context/BlogContext";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const searchParams = new URL(request.url).searchParams;
@@ -139,11 +140,15 @@ const cardColors = [
   'bg-orange-100',
 ];
 
-// 로더 데이터 타입 정의
-
 export default function BlogIndex() {
   const { posts, pagination, query } = useLoaderData<typeof loader>();
   const [searchParams] = useSearchParams();
+  const { setShowMainSortUI } = useBlog();
+  
+  // 메인 블로그 페이지에서는 기본 정렬 UI 표시
+  useEffect(() => {
+    setShowMainSortUI(true);
+  }, [setShowMainSortUI]);
   
   return (
     <div>

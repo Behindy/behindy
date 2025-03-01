@@ -1,11 +1,12 @@
 import { json, redirect, ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { Form, Link, useLoaderData, useActionData } from "@remix-run/react";
+import { Form, Link, useLoaderData, useActionData, useNavigation } from "@remix-run/react";
 import { db } from "../utils/db.server";
 import { formatDateTime } from "../utils/format";
 import { authenticateUser, requireAuth } from "../utils/auth.server";
 import invariant from "tiny-invariant";
 import { marked } from "marked";
 import { useState, useEffect } from "react";
+
 interface User {
   id: string;
   name: string;
@@ -18,7 +19,7 @@ interface Comment {
   id: string;
   content: string;
   createdAt: string | Date; 
-  updatedAt?: string | Date; // 문자열 또는 Date 모두 허용
+  updatedAt?: string | Date;
   authorId?: string;
   postId?: string;
   parentId?: string | null;
@@ -33,6 +34,7 @@ interface Comment {
 interface ActionData {
   commentError?: string;
   error?: string;
+  success?: string;
 }
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
@@ -121,7 +123,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
 
   const formData = await request.formData();
-  const intent = formData.get("_intent");
+  const intent = formData.get("_intent")?.toString();
 
   // 댓글 추가
   if (intent === "add-comment") {
@@ -187,12 +189,57 @@ export async function action({ request, params }: ActionFunctionArgs) {
     return redirect(`/blog/${slug}`);
   }
   
+  // 게시글 삭제
+  if (intent === "delete-post") {
+    // 작성자만 삭제 가능
+    if (post.authorId !== user.id && user.role !== "ADMIN") {
+      return json(
+        { error: "게시글을 삭제할 권한이 없습니다." },
+        { status: 403 }
+      );
+    }
+    
+    // 게시글 삭제
+    await db.post.delete({
+      where: { id: post.id },
+    });
+    
+    return redirect("/blog");
+  }
+  
+  // 게시글 발행 상태 변경
+  if (intent === "toggle-publish") {
+    // 작성자만 변경 가능
+    if (post.authorId !== user.id && user.role !== "ADMIN") {
+      return json(
+        { error: "게시글 상태를 변경할 권한이 없습니다." },
+        { status: 403 }
+      );
+    }
+    
+    // 상태 토글
+    const updatedPost = await db.post.update({
+      where: { id: post.id },
+      data: { published: !post.published },
+    });
+    
+    return json({
+      success: updatedPost.published 
+        ? "게시글이 발행되었습니다." 
+        : "게시글이 임시저장되었습니다."
+    });
+  }
+  
   return json({ error: "Invalid action" }, { status: 400 });
 }
 
 export default function BlogPost() {
   const { post, isAuthor, user } = useLoaderData<typeof loader>();
+  const actionData = useActionData<ActionData>();
+  const navigation = useNavigation();
+  const isSubmitting = navigation.state === "submitting";
   const [highlightedCommentId, setHighlightedCommentId] = useState<string | null>(null);
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
   // URL 해시가 있는 경우 해당 댓글로 스크롤
   useEffect(() => {
@@ -215,6 +262,18 @@ export default function BlogPost() {
           <p className="text-yellow-800">
             이 글은 아직 발행되지 않았습니다. 작성자만 볼 수 있습니다.
           </p>
+        </div>
+      )}
+      
+      {actionData?.success && (
+        <div className="bg-green-50 border border-green-200 p-4 rounded-md mb-6">
+          <p className="text-green-800">{actionData.success}</p>
+        </div>
+      )}
+      
+      {actionData?.error && (
+        <div className="bg-red-50 border border-red-200 p-4 rounded-md mb-6">
+          <p className="text-red-800">{actionData.error}</p>
         </div>
       )}
       
@@ -248,13 +307,63 @@ export default function BlogPost() {
               <div className="flex space-x-2">
                 <Link 
                   to={`/blog/${post.slug}/edit`}
-                  className="px-3 py-1 text-sm bg-gray-100 rounded-md hover:bg-gray-200"
+                  className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200"
                 >
                   수정
-                </Link>
+                </Link>                
+                <Form method="post" className="inline">
+                  <input type="hidden" name="_intent" value="toggle-publish" />
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="px-3 py-1 text-sm bg-yellow-100 text-yellow-700 rounded-md hover:bg-yellow-200"
+                  >
+                    {post.published ? "비공개 하기" : "공개하기"}
+                  </button>
+                </Form>
+                
+                <button
+                  onClick={() => setShowConfirmDelete(true)}
+                  className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded-md hover:bg-red-200"
+                >
+                  삭제
+                </button>
               </div>
             )}
           </div>
+          
+          {/* 삭제 확인 모달 */}
+          {showConfirmDelete && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
+                <h3 className="text-lg font-bold mb-4">게시글 삭제</h3>
+                <p className="mb-6">
+                  정말로 이 게시글을 삭제하시겠습니까?
+                </p> 
+                <p className="mb-6 text-red-600 opacity-50">
+                  * 이 작업은 되돌릴 수 없습니다.
+                </p>
+                <div className="flex justify-end space-x-3">
+                  <button
+                    onClick={() => setShowConfirmDelete(false)}
+                    className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-100"
+                  >
+                    취소
+                  </button>
+                  
+                  <Form method="post" className="inline">
+                    <input type="hidden" name="_intent" value="delete-post" />
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                    >
+                      삭제
+                    </button>
+                  </Form>
+                </div>
+              </div>
+            </div>
+          )}
           
           {post.tags.length > 0 && (
             <div className="flex flex-wrap gap-2 my-4">

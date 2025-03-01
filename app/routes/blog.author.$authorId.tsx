@@ -4,6 +4,9 @@ import { db } from "../utils/db.server";
 import { formatDate } from "../utils/format";
 import { Eye } from "lucide-react";
 import invariant from "tiny-invariant";
+import PostSortButtons from "../components/PostSortButtons";
+import { useEffect } from "react";
+import { useBlog } from "../context/BlogContext";
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const { authorId } = params;
@@ -123,12 +126,17 @@ const cardColors = [
 export default function AuthorPosts() {
   const { author, posts, pagination } = useLoaderData<typeof loader>();
   const [searchParams] = useSearchParams();
+  const { setShowMainSortUI } = useBlog();
   
-  const setSortOrder = (order: string) => {
-    const params = new URLSearchParams(searchParams);
-    params.set("sort", order);
-    return `?${params.toString()}`;
-  };
+  // 이 페이지에서는 메인 정렬 UI를 숨김
+  useEffect(() => {
+    setShowMainSortUI(false);
+    
+    // 컴포넌트 언마운트 시 복원
+    return () => {
+      setShowMainSortUI(true);
+    };
+  }, [setShowMainSortUI]);
 
   return (
     <div>
@@ -154,28 +162,9 @@ export default function AuthorPosts() {
         
         {/* 정렬 버튼 */}
         <div className="flex justify-end mt-4">
-          <div className="flex items-center gap-1">
-            <Link
-              to={setSortOrder("latest")}
-              className={`px-3 py-2 rounded-md text-sm font-medium ${
-                searchParams.get("sort") !== "views" 
-                  ? "bg-blue-100 text-blue-700"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              최신순
-            </Link>
-            <Link
-              to={setSortOrder("views")}
-              className={`px-3 py-2 rounded-md text-sm font-medium ${
-                searchParams.get("sort") === "views" 
-                  ? "bg-blue-100 text-blue-700"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              조회수
-            </Link>
-          </div>
+          <PostSortButtons 
+            baseUrl={`/blog/author/${author.id}`}
+          />
         </div>
       </div>
       

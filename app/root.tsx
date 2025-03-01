@@ -7,6 +7,7 @@ import {
   ScrollRestoration,
 } from "@remix-run/react";
 import { authenticateUser } from "./utils/auth.server";
+import { BlogProvider } from "./context/BlogContext";
 
 // CSS 직접 임포트
 import "./styles/tailwind.css";
@@ -18,6 +19,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export default function App() {
+  
   return (
     <html lang="ko" className="h-full">
       <head>
@@ -27,7 +29,9 @@ export default function App() {
         <Links />
       </head>
       <body className="h-full">
-        <Outlet />
+        <BlogProvider>
+          <Outlet />
+        </BlogProvider>
         <ScrollRestoration />
         <Scripts />
       </body>

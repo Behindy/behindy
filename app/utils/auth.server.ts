@@ -71,9 +71,6 @@ export async function createUserSession(accessToken: string, sessionId: string, 
   session.set("accessToken", accessToken);
   session.set("sessionId", sessionId);
   
-  // 디버깅 로그 추가
-  console.log(`Session created, redirecting to: ${redirectTo}`);
-  
   return redirect(redirectTo, {
     headers: {
       "Set-Cookie": await sessionStorage.commitSession(session)
@@ -303,8 +300,6 @@ export async function handleGoogleLogin(code: string) {
     // 리프레시 토큰 생성 및 저장
     const refreshToken = generateRefreshToken(payload);
     await saveRefreshToken(user.id, refreshToken);
-    
-    console.log("Google login successful, redirecting to home");
     
     // 세션 생성 및 홈페이지로 리디렉트
     // 명시적으로 redirectTo를 root path로 지정

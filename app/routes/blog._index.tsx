@@ -9,7 +9,7 @@ import { Prisma } from '@prisma/client';
 export async function loader({ request }: LoaderFunctionArgs) {
   const searchParams = new URL(request.url).searchParams;
   const page = Number(searchParams.get("page") || "1");
-  const limit = 8; // 한 페이지에 표시할 카드 수
+  const limit = 12; // 한 페이지에 표시할 카드 수
   const skip = (page - 1) * limit;
   
   // 검색어 및 정렬 기준 가져오기
@@ -182,7 +182,7 @@ export default function BlogIndex() {
       {/* 게시글 목록 */}
       {posts.length > 0 && (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {posts.map((post, index) => {
               const imageUrl = extractFirstImageUrl(post.content);
               const randomColorClass = cardColors[index % cardColors.length];
@@ -191,7 +191,7 @@ export default function BlogIndex() {
                 <Link 
                   to={`/blog/${post.slug}`} 
                   key={post.id}
-                  className="flex flex-col overflow-hidden rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300"
+                  className="flex flex-col overflow-hidden rounded-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition duration-300 transform"
                 >
                   {/* 이미지 영역 */}
                   <div className={`h-48 overflow-hidden ${!imageUrl ? randomColorClass : ''}`}>

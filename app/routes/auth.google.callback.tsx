@@ -5,22 +5,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
   
-  console.log("Callback URL:", url.toString());
-  
   if (!code) {
     console.error("No code provided in callback URL");
     return redirect("/login?error=no_code");
   }
   
   try {
-    console.log("Handling Google login with code:", code.substring(0, 10) + "...");
-    
     // 세션 생성 및 리디렉션 처리
     const response = await handleGoogleLogin(code);
-    
-    // 응답 객체 내용 확인
-    console.log("Response headers:", Object.fromEntries(response.headers.entries()));
-    console.log("Response status:", response.status);
     
     return response;
   } catch (error) {

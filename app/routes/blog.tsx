@@ -1,6 +1,6 @@
 // blog.tsx - 개선된 블로그 레이아웃 파일
 import { json, LoaderFunctionArgs } from "@remix-run/node";
-import { Link, Outlet, useLoaderData, Form, useSearchParams, useSubmit } from "@remix-run/react";
+import { Outlet, Form, useSearchParams, useSubmit } from "@remix-run/react";
 import { useEffect, useRef, useState } from "react";
 import { authenticateUser } from "../utils/auth.server";
 import MainLayout from "../components/layout/MainLayout";
@@ -12,7 +12,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export default function BlogLayout() {
-  const { user } = useLoaderData<typeof loader>();
   const [searchParams] = useSearchParams();
   const [isTagSearch, setIsTagSearch] = useState(false);
   const [searchTerm, setSearchTerm] = useState(searchParams.get("q") || "");
@@ -83,14 +82,7 @@ export default function BlogLayout() {
     <MainLayout>
       <div className="max-w-5xl mx-auto">
         <div className="mb-8 border-b pb-5">
-          <div className="flex justify-between items-center mb-4">
-            
-            {user && (
-              <Link to="/compose" className="px-3 py-2 text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700">
-                새 글 작성
-              </Link>
-            )}
-          </div>
+
           
           {/* 검색 및 필터링 UI */}
           <div className="flex flex-wrap items-center gap-2">

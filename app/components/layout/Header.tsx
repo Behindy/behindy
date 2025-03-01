@@ -26,19 +26,27 @@ export default function Header() {
               <span className="text-xl font-bold text-blue-600">Behindy</span>
             </Link>
             <nav className="ml-10 flex items-center space-x-4">
-              <Link to="/blog" className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-blue-600">
+              <Link to="/blog" className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-white hover:bg-gray-200 transition">
                 블로그
               </Link>
               {user && (
-                <Link to="/blog/dashboard" className="px-3 py-2 text-sm font-medium rounded-md bg-gray-100 text-gray-900 hover:bg-gray-200">
+                <Link to="/blog/dashboard" className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-white hover:bg-gray-200 transition">
                   대시보드
                 </Link>
               )}
+                <Link to="/blog/about" className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-white hover:bg-gray-200 transition">
+                  소개
+                </Link>
             </nav>
           </div>
           <div className="flex items-center">
             {user ? (
               <div className="flex items-center space-x-4">
+                {user && (
+                  <Link to="/compose" className="px-6 py-2 text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700">
+                    새 글 작성
+                  </Link>
+                )}
                 <div className="flex items-center space-x-2">
                   {user.profileImage ? (
                     <img 
@@ -53,7 +61,6 @@ export default function Header() {
                   )}
                   <span className="text-sm font-medium text-gray-700">{user.name}</span>
                 </div>
-                
                 <Form action="/logout" method="post">
                   <button 
                     type="submit"

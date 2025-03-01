@@ -306,11 +306,11 @@ export default function BlogPost() {
             {isAuthor && (
               <div className="flex space-x-2">
                 <Link 
-                  to={`/blog/${post.slug}/edit`}
+                  to={`/${post.slug}/edit`}
                   className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200"
                 >
                   수정
-                </Link>                
+                </Link>            
                 <Form method="post" className="inline">
                   <input type="hidden" name="_intent" value="toggle-publish" />
                   <button
@@ -370,8 +370,8 @@ export default function BlogPost() {
               {post.tags.map((tagRelation) => (
                 <Link
                   key={tagRelation.tag.id}
-                  to={`/blog/tags/${tagRelation.tag.name}`}
-                  className="px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded-md hover:bg-gray-200"
+                  to={`/blog/search?type=tag&q=${tagRelation.tag.name}`}
+                  className={`px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded-md hover:bg-gray-200`}
                 >
                   {tagRelation.tag.name}
                 </Link>

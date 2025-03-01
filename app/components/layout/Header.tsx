@@ -1,4 +1,4 @@
-import { Link, useLoaderData, Form, useSubmit, useSearchParams } from "@remix-run/react";
+import { Link, useLoaderData, Form, useSearchParams, useNavigate  } from "@remix-run/react";
 import { useState, useEffect, useRef } from "react";
 import { Search } from "lucide-react";
 import { useBlog } from "../../context/BlogContext";
@@ -17,11 +17,12 @@ interface LoaderData {
 }
 
 export default function Header() {
+  const navigate = useNavigate();
+  
   // 로더 데이터에서 사용자 정보 가져오기
   const { user } = useLoaderData<LoaderData>();
   const [searchParams] = useSearchParams();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const submit = useSubmit();
   const searchInputRef = useRef<HTMLInputElement>(null);
   
   // BlogContext 사용
@@ -42,12 +43,12 @@ export default function Header() {
     e.preventDefault();
     
     if (searchTerm.trim()) {
-      const params = new URLSearchParams(searchParams);
-      params.set("q", searchTerm);
-      submit(`/blog?${params.toString()}`, { replace: true });
+      // 검색 페이지로 이동
+      navigate(`/blog/search?type=keyword&q=${encodeURIComponent(searchTerm.trim())}`);
       setIsSearchOpen(false);
     }
   };
+  
   
   return (
     <header className="bg-white shadow">

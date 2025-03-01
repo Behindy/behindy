@@ -1,5 +1,5 @@
 import { json, LoaderFunctionArgs } from "@remix-run/node";
-import { Outlet, useSearchParams } from "@remix-run/react";
+import { Outlet, useLocation, useSearchParams } from "@remix-run/react";
 import { authenticateUser } from "../utils/auth.server";
 import MainLayout from "../components/layout/MainLayout";
 import PostSortButtons from "../components/PostSortButtons";
@@ -14,6 +14,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export default function BlogLayout() {
   const [searchParams] = useSearchParams();
   const { showMainSortUI } = useBlog();
+  const location = useLocation();
+  
+  // 검색 페이지인 경우 레이아웃 적용하지 않음
+  if (location.pathname === "/blog/search") {
+    return <Outlet />;
+  }
   
   return (
     <MainLayout>

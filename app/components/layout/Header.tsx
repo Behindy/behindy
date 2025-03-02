@@ -16,11 +16,26 @@ interface LoaderData {
   user: User | null;
 }
 
-export default function Header() {
+interface HeaderProps {
+  user?: User | null;
+}
+
+export default function Header({ user: propUser }: HeaderProps) {
   const navigate = useNavigate();
   
-  // 로더 데이터에서 사용자 정보 가져오기
-  const { user } = useLoaderData<LoaderData>();
+  // props로 전달된 user가 있으면 사용하고, 없으면 loader에서 가져옴
+  let userData: User | null = null;
+  
+  try {
+    // useLoaderData는 레이아웃 컴포넌트에서는 사용하되, 
+    // 별도 레이아웃에서는 에러가 발생할 수 있으므로 try-catch로 처리
+    const loaderData = useLoaderData<LoaderData>();
+    userData = propUser || loaderData.user;
+  } catch (e) {
+    // useLoaderData 사용 중 오류 발생 시 props의 user 사용
+    userData = propUser || null;
+  }
+  
   const [searchParams] = useSearchParams();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -49,7 +64,6 @@ export default function Header() {
     }
   };
   
-  
   return (
     <header className="bg-white shadow">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -62,7 +76,7 @@ export default function Header() {
               <Link to="/blog" className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-white hover:bg-gray-200 transition">
                 블로그
               </Link>
-              {user && (
+              {userData && (
                 <Link to="/blog/dashboard" className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-white hover:bg-gray-200 transition">
                   대시보드
                 </Link>
@@ -105,26 +119,26 @@ export default function Header() {
               </button>
             )}
             
-            {user ? (
+            {userData ? (
               <div className="flex items-center space-x-4">
-                {user && (
+                {userData && (
                   <Link to="/compose" className="px-6 py-2 text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700">
                     새 글 작성
                   </Link>
                 )}
                 <div className="flex items-center space-x-2">
-                  {user.profileImage ? (
+                  {userData.profileImage ? (
                     <img 
-                      src={user.profileImage} 
-                      alt={user.name}
+                      src={userData.profileImage} 
+                      alt={userData.name}
                       className="w-8 h-8 rounded-full"
                     />
                   ) : (
                     <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                      <span className="text-blue-600 font-medium">{user.name.charAt(0)}</span>
+                      <span className="text-blue-600 font-medium">{userData.name.charAt(0)}</span>
                     </div>
                   )}
-                  <span className="text-sm font-medium text-gray-700">{user.name}</span>
+                  <span className="text-sm font-medium text-gray-700">{userData.name}</span>
                 </div>
                 <Form action="/logout" method="post">
                   <button 

@@ -5,6 +5,15 @@ import { formatDate } from "../utils/format";
 import { Eye, Tag, Search } from "lucide-react";
 import { Prisma } from "@prisma/client";
 import Header from "../components/layout/Header";
+import { authenticateUser } from "../utils/auth.server";
+
+interface User {
+  id: string;
+  name: string;
+  profileImage?: string | null;
+  email?: string;
+  role?: string;
+}
 
 // 통합 검색 페이지 로더
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -12,7 +21,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const page = Number(searchParams.get("page") || "1");
   const limit = 12; // 카드형 UI에 맞게 한 페이지에 표시할 수 변경
   const skip = (page - 1) * limit;
-  
+  const user = await authenticateUser(request);
+
   // 검색 타입과 쿼리 가져오기
   const searchType = searchParams.get("type") || "keyword"; // keyword 또는 tag
   const query = searchParams.get("q") || "";
@@ -110,7 +120,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
       page,
       totalPages: Math.ceil(count / limit),
       totalItems: count,
-    }
+    },
+    user
   });
 }
 
@@ -147,10 +158,10 @@ const cardColors = [
 ];
 
 // 검색 전용 레이아웃 컴포넌트
-function SearchLayout({ children }: { children: React.ReactNode }) {
+function SearchLayout({ children, user }: { children: React.ReactNode, user: User | null }) {
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
+      <Header user={user} />
       <main className="py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {children}
@@ -161,11 +172,11 @@ function SearchLayout({ children }: { children: React.ReactNode }) {
 }
 
 export default function SearchResults() {
-  const { posts, searchType, query, sortOrder, pagination } = useLoaderData<typeof loader>();
+  const { posts, searchType, query, sortOrder, pagination, user } = useLoaderData<typeof loader>();
   const [searchParams] = useSearchParams();
   
   return (
-    <SearchLayout>
+    <SearchLayout user={user}>
       <div>
         {/* 상단 검색 결과 정보 영역 */}
         <div className="mb-8">

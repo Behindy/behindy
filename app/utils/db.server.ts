@@ -34,7 +34,7 @@ if (process.env.NODE_ENV === "production") {
 
 // 연결 오류 처리
 try {
-  // 연결 테스트 (비동기지만 초기화에만 사용하므로 await 없이 사용)
+  // 연결 테스트
   db.$connect().catch((error) => {
     console.error('Prisma Client connection error:', error);
   });
@@ -43,18 +43,24 @@ try {
   process.on('beforeExit', () => {
     db.$disconnect().catch(console.error);
   });
+  
+  // 재연결 기능 추가
+  process.on('uncaughtException', (error) => {
+    console.error('Uncaught exception:', error);
+    
+    // 데이터베이스 연결 오류인 경우 재연결 시도
+    if (error.message.includes('Connection reset') || 
+        error.message.includes('ConnectionReset') ||
+        error.message.includes('104') || 
+        error.message.includes('10054')) {
+      console.log('Attempting to reconnect to database...');
+      db.$disconnect()
+        .then(() => db.$connect())
+        .catch(console.error);
+    }
+  });
 } catch (error) {
   console.error('Prisma Client initialization error:', error);
-  
-  // 연결 재시도 로직 (필요한 경우)
-  // 타입 문제를 피하기 위해 타입 체크 방식 사용
-  if (error && typeof error === 'object' && 'code' in error && error.code === 'P1017') {
-    console.log('Attempting to reconnect to database...');
-    db = createPrismaClient();
-    if (process.env.NODE_ENV !== "production") {
-      global.__db = db;
-    }
-  }
 }
 
 export { db };

@@ -148,7 +148,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     });
 
     // 현재 페이지로 리디렉션
-    return redirect(`/blog/${slug}`);
+    return redirect(`/blog/${encodeURIComponent(slug)}`);
   }
   
   // 댓글 삭제
@@ -186,7 +186,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       where: { id: commentId },
     });
     
-    return redirect(`/blog/${slug}`);
+    return redirect(`/blog/${encodeURIComponent(slug)}`);
   }
   
   // 게시글 삭제
@@ -412,8 +412,14 @@ export default function BlogPost() {
 // 댓글 입력 폼
 function CommentForm({ postId, parentId = null, user }: { postId: string; parentId?: string | null; user: User | null }) {
   const [content, setContent] = useState("");
-  const actionData = useActionData<ActionData>();
   const isReply = !!parentId;
+  const navigation = useNavigation();
+
+  useEffect(() => {
+    if (navigation.state === "idle" && navigation.formData) {
+      setContent("");
+    }
+  }, [navigation.state, navigation.formData]);
   
   if (!user) {
     return (
@@ -436,17 +442,7 @@ function CommentForm({ postId, parentId = null, user }: { postId: string; parent
       {parentId && <input type="hidden" name="parentId" value={parentId} />}
       
       <div className="flex items-start space-x-3">
-        {user.profileImage ? (
-          <img 
-            src={user.profileImage}
-            alt={user.name}
-            className="w-8 h-8 rounded-full mt-1"
-          />
-        ) : (
-          <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center mt-1">
-            <span className="text-gray-500 text-xs">{user.name.charAt(0)}</span>
-          </div>
-        )}
+        {/* 사용자 프로필 이미지/아바타 부분 */}
         
         <div className="flex-1">
           <textarea
@@ -458,9 +454,7 @@ function CommentForm({ postId, parentId = null, user }: { postId: string; parent
             placeholder={isReply ? "답글을 작성하세요..." : "댓글을 작성하세요..."}
           />
           
-          {actionData?.commentError && (
-            <p className="text-red-600 text-sm mt-1">{actionData.commentError}</p>
-          )}
+          {/* 오류 메시지 표시 부분 */}
           
           <div className="mt-2 flex justify-end">
             <button

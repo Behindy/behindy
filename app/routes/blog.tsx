@@ -21,11 +21,15 @@ export default function BlogLayout() {
     return <Outlet />;
   }
   
+  // 특정 경로에서는 정렬 UI를 표시하지 않음
+  const hideUIInPaths = ["/blog/about", "/blog/dashboard", "/blog/mypage"];
+  const shouldShowSortUI = showMainSortUI && !hideUIInPaths.includes(location.pathname);
+  
   return (
     <MainLayout>
       <div className="max-w-5xl mx-auto">
-        {/* 메인 정렬 UI - 컨텍스트에 따라 표시 여부 결정 */}
-        {showMainSortUI && (
+        {/* 메인 정렬 UI - 컨텍스트에 따라 표시 여부 결정 및 특정 경로에서는 숨김 */}
+        {shouldShowSortUI && (
           <div className="mb-8 border-b pb-5">
             <div className="flex justify-end items-center gap-2">
               <PostSortButtons baseUrl="/blog" />

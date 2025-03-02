@@ -138,7 +138,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     }
 
     // 부모 댓글이 있으면 답글, 없으면 새 댓글
-    await db.comment.create({
+    const comment = await db.comment.create({
       data: {
         content,
         parentId: typeof parentId === "string" && parentId ? parentId : null,
@@ -147,8 +147,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
       },
     });
 
-    // 현재 페이지로 리디렉션
-    return redirect(`/blog/${encodeURIComponent(slug)}`);
+    // 현재 페이지로 리다이렉트하되 새 댓글 ID를 해시로 추가
+    return redirect(`/blog/${encodeURIComponent(slug)}#comment-${comment.id}`);
   }
   
   // 댓글 삭제
@@ -240,17 +240,24 @@ export default function BlogPost() {
   const isSubmitting = navigation.state === "submitting";
   const [highlightedCommentId, setHighlightedCommentId] = useState<string | null>(null);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
-
-  // URL 해시가 있는 경우 해당 댓글로 스크롤
+  
+  // 페이지 로딩 시 해시가 있으면 해당 위치로 스크롤
   useEffect(() => {
     if (window.location.hash) {
-      const commentId = window.location.hash.substring(1); // #을 제외한 ID
+      const commentId = window.location.hash.substring(1);
       setHighlightedCommentId(commentId);
       
-      // 스크롤 애니메이션
       const element = document.getElementById(commentId);
       if (element) {
-        element.scrollIntoView({ behavior: "smooth" });
+        // 약간의 지연 후 스크롤 (페이지 로딩 후 실행되도록)
+        setTimeout(() => {
+          element.scrollIntoView({ behavior: "smooth", block: "center" });
+          
+          // 효과 제거 타이머
+          setTimeout(() => {
+            setHighlightedCommentId(null);
+          }, 3000);
+        }, 300);
       }
     }
   }, []);
@@ -413,13 +420,8 @@ export default function BlogPost() {
 function CommentForm({ postId, parentId = null, user }: { postId: string; parentId?: string | null; user: User | null }) {
   const [content, setContent] = useState("");
   const isReply = !!parentId;
-  const navigation = useNavigation();
 
-  useEffect(() => {
-    if (navigation.state === "idle" && navigation.formData) {
-      setContent("");
-    }
-  }, [navigation.state, navigation.formData]);
+  // navigation.state 변화에 따른 초기화 로직 대신 직접 폼 제출 시 초기화
   
   if (!user) {
     return (
@@ -436,13 +438,33 @@ function CommentForm({ postId, parentId = null, user }: { postId: string; parent
   }
   
   return (
-    <Form method="post" className="mt-4">
+    <Form 
+      method="post" 
+      className="mt-4"
+      onSubmit={() => {
+        // 폼이 제출되면 내용 초기화 (약간의 지연 추가)
+        setTimeout(() => setContent(""), 100);
+      }}
+    >
       <input type="hidden" name="_intent" value="add-comment" />
       <input type="hidden" name="postId" value={postId} />
       {parentId && <input type="hidden" name="parentId" value={parentId} />}
       
       <div className="flex items-start space-x-3">
         {/* 사용자 프로필 이미지/아바타 부분 */}
+        <div className="flex-shrink-0">
+          {user.profileImage ? (
+            <img 
+              src={user.profileImage} 
+              alt={user.name}
+              className="w-10 h-10 rounded-full"
+            />
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+              <span className="text-blue-600 font-medium">{user.name.charAt(0)}</span>
+            </div>
+          )}
+        </div>
         
         <div className="flex-1">
           <textarea
@@ -459,7 +481,7 @@ function CommentForm({ postId, parentId = null, user }: { postId: string; parent
           <div className="mt-2 flex justify-end">
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={!content.trim()}
             >
               {isReply ? "답글 작성" : "댓글 작성"}
@@ -493,7 +515,7 @@ function Comment({
   return (
     <div 
       id={`comment-${comment.id}`} 
-      className={`border-b pb-6 ${isHighlighted ? 'bg-yellow-50 p-3 rounded-md border border-yellow-200' : ''}`}
+      className={`border-b pb-6 ${isHighlighted ? 'bg-yellow-50 p-3 rounded-md border border-yellow-200 animate-pulse' : ''}`}
     >
       <div className="flex justify-between">
         <div className="flex items-center space-x-2">
@@ -555,8 +577,14 @@ function Comment({
       {/* 답글 표시 */}
       {comment.replies && comment.replies.length > 0 && (
         <div className="mt-4 ml-6 space-y-4">
-          {comment.replies && comment.replies.map((reply: Comment) => (
-            <div key={reply.id} className="border-l-2 border-gray-200 pl-4">
+          {comment.replies.map((reply) => (
+            <div 
+              key={reply.id} 
+              id={`comment-${reply.id}`} 
+              className={`border-l-2 border-gray-200 pl-4 ${
+                window.location.hash === `#comment-${reply.id}` ? 'bg-yellow-50 p-2 rounded-md border border-yellow-200 animate-pulse' : ''
+              }`}
+            >
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   {reply.author.profileImage ? (

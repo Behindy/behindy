@@ -10,25 +10,21 @@ export async function loader({ request }: LoaderFunctionArgs) {
   return json({ user });
 }
 
-// 블로그 레이아웃 컴포넌트
 export default function BlogLayout() {
   const [searchParams] = useSearchParams();
   const { showMainSortUI } = useBlog();
   const location = useLocation();
   
-  // 검색 페이지인 경우 레이아웃 적용하지 않음
   if (location.pathname === "/blog/search") {
     return <Outlet />;
   }
   
-  // 특정 경로에서는 정렬 UI를 표시하지 않음
   const hideUIInPaths = ["/blog/about", "/blog/dashboard", "/blog/mypage"];
   const shouldShowSortUI = showMainSortUI && !hideUIInPaths.includes(location.pathname);
   
   return (
     <MainLayout>
       <div className="max-w-5xl mx-auto">
-        {/* 메인 정렬 UI - 컨텍스트에 따라 표시 여부 결정 및 특정 경로에서는 숨김 */}
         {shouldShowSortUI && (
           <div className="mb-8 border-b pb-5">
             <div className="flex justify-end items-center gap-2">
@@ -37,7 +33,6 @@ export default function BlogLayout() {
           </div>
         )}
         
-        {/* 검색 결과 표시 */}
         {(searchParams.get("q") || searchParams.get("tag")) && (
           <div className="mb-4 px-4 py-2 bg-blue-50 text-blue-700 rounded-md">
             {searchParams.get("q") && (
@@ -48,8 +43,6 @@ export default function BlogLayout() {
             )}
           </div>
         )}
-        
-        {/* 게시글 목록 (Outlet으로 표시) */}
         <Outlet />
       </div>
     </MainLayout>

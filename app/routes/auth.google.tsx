@@ -1,5 +1,6 @@
 import { LoaderFunctionArgs, json } from "@remix-run/node";
-import { useLoaderData } from "@remix-run/react";
+import { useLoaderData,  } from "@remix-run/react";
+import { useState, useEffect } from "react";
 import { getGoogleAuthURL } from "../utils/google.server";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -10,11 +11,35 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export default function GoogleAuth() {
   const { googleAuthURL } = useLoaderData<typeof loader>();
+  const [browserSupport] = useState<string | null>(null);
   
-  // 페이지가 로드되면 Google 인증 페이지로 자동 리디렉션
-  if (typeof window !== 'undefined') {
-    window.location.href = googleAuthURL;
-  }
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      
+      if (isMobile) {
+        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+        
+        if (isIOS) {
+          window.location.href = googleAuthURL;
+        } else {
+          const intentURI = `intent://${googleAuthURL.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`;
+          
+          try {
+            window.location.href = intentURI;
+            setTimeout(() => {
+              if (document.hidden) return;
+              window.location.href = googleAuthURL;
+            }, 2000);
+          } catch (e) {
+            window.location.href = googleAuthURL;
+          }
+        }
+      } else {
+        window.location.href = googleAuthURL;
+      }
+    }
+  }, [googleAuthURL]);
   
   return (
     <div className="flex justify-center items-center min-h-screen">
@@ -27,6 +52,10 @@ export default function GoogleAuth() {
         >
           Google 로그인으로 이동
         </a>
+        
+        {browserSupport && (
+          <p className="mt-4 text-sm text-gray-500">{browserSupport}</p>
+        )}
       </div>
     </div>
   );

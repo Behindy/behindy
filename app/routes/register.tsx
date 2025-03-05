@@ -65,7 +65,6 @@ export async function action({ request }: ActionFunctionArgs) {
   return createUserSession(result.accessToken, result.sessionId, redirectTo);
 }
 
-// JSX 부분은 그대로 유지
 export default function Register() {
   const actionData = useActionData<typeof action>();
   const [searchParams] = useSearchParams();
@@ -74,7 +73,9 @@ export default function Register() {
   return (
     <div className="flex min-h-screen flex-col justify-center bg-slate-50">
       <div className="mx-auto w-full max-w-md px-8">
-        <h1 className="text-2xl font-bold text-center mb-6">회원가입</h1>
+        <div className="mx-auto my-3 w-1/2 text-center">
+          <Link to="/blog" className="text-4xl font-bold text-blue-700 mb-6">Behindy</Link>
+        </div>
         <div className="bg-white p-6 rounded-lg shadow-md">
           <Form method="post" className="space-y-6">
             <div>

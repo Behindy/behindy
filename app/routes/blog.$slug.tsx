@@ -90,13 +90,11 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     throw new Response("Not Found", { status: 404 });
   }
 
-  // 조회수 증가 (중복 방지를 위한 실제 구현은 세션 기반으로 해야함)
   await db.post.update({
     where: { id: post.id },
     data: { views: post.views + 1 },
   });
 
-  // markdown 변환
   const htmlContent = marked(post.content);
 
   return json({
@@ -125,7 +123,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const formData = await request.formData();
   const intent = formData.get("_intent")?.toString();
 
-  // 댓글 추가
   if (intent === "add-comment") {
     const content = formData.get("content");
     const parentId = formData.get("parentId");
@@ -137,7 +134,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
       );
     }
 
-    // 부모 댓글이 있으면 답글, 없으면 새 댓글
     const comment = await db.comment.create({
       data: {
         content,
@@ -147,11 +143,9 @@ export async function action({ request, params }: ActionFunctionArgs) {
       },
     });
 
-    // 현재 페이지로 리다이렉트하되 새 댓글 ID를 해시로 추가
     return redirect(`/blog/${encodeURIComponent(slug)}#comment-${comment.id}`);
   }
   
-  // 댓글 삭제
   if (intent === "delete-comment") {
     const commentId = formData.get("commentId");
     
@@ -173,7 +167,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
       );
     }
     
-    // 댓글 작성자 또는 포스트 작성자만 삭제 가능
     if (comment.authorId !== user.id && post.authorId !== user.id) {
       return json(
         { commentError: "댓글을 삭제할 권한이 없습니다." },
@@ -181,7 +174,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
       );
     }
     
-    // 댓글 삭제
     await db.comment.delete({
       where: { id: commentId },
     });
@@ -189,9 +181,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     return redirect(`/blog/${encodeURIComponent(slug)}`);
   }
   
-  // 게시글 삭제
   if (intent === "delete-post") {
-    // 작성자만 삭제 가능
     if (post.authorId !== user.id && user.role !== "ADMIN") {
       return json(
         { error: "게시글을 삭제할 권한이 없습니다." },
@@ -199,7 +189,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
       );
     }
     
-    // 게시글 삭제
     await db.post.delete({
       where: { id: post.id },
     });
@@ -207,9 +196,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     return redirect("/blog");
   }
   
-  // 게시글 발행 상태 변경
   if (intent === "toggle-publish") {
-    // 작성자만 변경 가능
     if (post.authorId !== user.id && user.role !== "ADMIN") {
       return json(
         { error: "게시글 상태를 변경할 권한이 없습니다." },
@@ -217,7 +204,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
       );
     }
     
-    // 상태 토글
     const updatedPost = await db.post.update({
       where: { id: post.id },
       data: { published: !post.published },
@@ -241,7 +227,6 @@ export default function BlogPost() {
   const [highlightedCommentId, setHighlightedCommentId] = useState<string | null>(null);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   
-  // 페이지 로딩 시 해시가 있으면 해당 위치로 스크롤
   useEffect(() => {
     if (window.location.hash) {
       const commentId = window.location.hash.substring(1);
@@ -249,11 +234,9 @@ export default function BlogPost() {
       
       const element = document.getElementById(commentId);
       if (element) {
-        // 약간의 지연 후 스크롤 (페이지 로딩 후 실행되도록)
         setTimeout(() => {
           element.scrollIntoView({ behavior: "smooth", block: "center" });
           
-          // 효과 제거 타이머
           setTimeout(() => {
             setHighlightedCommentId(null);
           }, 3000);

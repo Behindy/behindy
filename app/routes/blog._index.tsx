@@ -10,20 +10,17 @@ import { useBlog } from "../context/BlogContext";
 export async function loader({ request }: LoaderFunctionArgs) {
   const searchParams = new URL(request.url).searchParams;
   const page = Number(searchParams.get("page") || "1");
-  const limit = 12; // 한 페이지에 표시할 카드 수
+  const limit = 12;
   const skip = (page - 1) * limit;
   
-  // 검색어 및 정렬 기준 가져오기
   const searchQuery = searchParams.get("q") || "";
   const tagQuery = searchParams.get("tag") || "";
-  const sortOrder = searchParams.get("sort") || "latest"; // 기본값은 최신순
+  const sortOrder = searchParams.get("sort") || "latest";
   
-  // 검색 조건 구성
   let whereCondition: Prisma.PostWhereInput = {
     published: true
   };
   
-  // 검색어가 있는 경우 검색 조건 추가
   if (searchQuery) {
     whereCondition = {
       ...whereCondition,
@@ -35,7 +32,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
     };
   }
   
-  // 태그 검색이 있는 경우 검색 조건 추가
   if (tagQuery) {
     whereCondition = {
       ...whereCondition,
@@ -49,12 +45,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
     };
   }
   
-  // 정렬 기준 설정
   const orderBy: Prisma.PostOrderByWithRelationInput = sortOrder === "views" 
     ? { views: "desc" } 
     : { createdAt: "desc" };
   
-  // 게시글 조회
   const posts = await db.post.findMany({
     where: whereCondition,
     orderBy,
@@ -88,7 +82,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
     },
   });
   
-  // 총 게시글 수 조회
   const count = await db.post.count({
     where: whereCondition,
   });
@@ -108,7 +101,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
   });
 }
 
-// 마크다운 내용에서 첫 번째 이미지 URL을 추출하는 함수
 function extractFirstImageUrl(content: string): string | null {
   const imgRegex = /!\[.*?\]\((.*?)\)/;
   const match = content.match(imgRegex);
@@ -117,7 +109,6 @@ function extractFirstImageUrl(content: string): string | null {
     return match[1];
   }
   
-  // HTML 이미지 태그도 확인
   const htmlImgRegex = /<img.*?src=["'](.*?)["']/;
   const htmlMatch = content.match(htmlImgRegex);
   
@@ -128,7 +119,6 @@ function extractFirstImageUrl(content: string): string | null {
   return null;
 }
 
-// 색상 배열 (이미지가 없을 때 랜덤 배경색으로 사용)
 const cardColors = [
   'bg-blue-100',
   'bg-green-100',
@@ -145,14 +135,12 @@ export default function BlogIndex() {
   const [searchParams] = useSearchParams();
   const { setShowMainSortUI } = useBlog();
   
-  // 메인 블로그 페이지에서는 기본 정렬 UI 표시
   useEffect(() => {
     setShowMainSortUI(true);
   }, [setShowMainSortUI]);
   
   return (
     <div>
-      {/* 검색 결과가 없을 때 */}
       {posts.length === 0 && (query.search || query.tag) && (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
           <h2 className="text-xl font-medium text-gray-700">검색 결과가 없습니다</h2>
@@ -170,7 +158,6 @@ export default function BlogIndex() {
         </div>
       )}
       
-      {/* 게시글이 없을 때 (검색이 아닌 경우) */}
       {posts.length === 0 && !query.search && !query.tag && (
         <div className="text-center py-12">
           <h2 className="text-xl font-medium text-gray-900">아직 작성된 글이 없습니다</h2>
@@ -184,7 +171,6 @@ export default function BlogIndex() {
         </div>
       )}
       
-      {/* 게시글 목록 */}
       {posts.length > 0 && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -198,7 +184,6 @@ export default function BlogIndex() {
                   key={post.id}
                   className="flex flex-col overflow-hidden rounded-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition duration-300 transform"
                 >
-                  {/* 이미지 영역 */}
                   <div className={`h-48 overflow-hidden ${!imageUrl ? randomColorClass : ''}`}>
                     {imageUrl ? (
                       <img 
@@ -214,8 +199,6 @@ export default function BlogIndex() {
                       </div>
                     )}
                   </div>
-                  
-                  {/* 컨텐츠 영역 */}
                   <div className="flex flex-col flex-grow p-4 bg-white">
                     <div className="flex-grow">
                       <h2 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
@@ -228,7 +211,6 @@ export default function BlogIndex() {
                         </p>
                       )}
                       
-                      {/* 태그 */}
                       {post.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1 mb-3">
                           {post.tags.slice(0, 3).map((tagRelation) => (
@@ -247,8 +229,6 @@ export default function BlogIndex() {
                         </div>
                       )}
                     </div>
-                    
-                    {/* 하단 정보 */}
                     <div className="mt-4">
                       <div className="flex items-center text-sm text-gray-500">
                         <Link 
@@ -284,13 +264,11 @@ export default function BlogIndex() {
             })}
           </div>
           
-          {/* 페이지네이션 */}
           {pagination.totalPages > 1 && (
             <div className="mt-12 flex justify-center">
               <nav className="flex items-center space-x-2" aria-label="Pagination">
                 {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map(
                   (page) => {
-                    // 현재 검색 파라미터 유지하면서 페이지만 변경
                     const newParams = new URLSearchParams(searchParams);
                     newParams.set("page", page.toString());
                     

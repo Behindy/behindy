@@ -12,26 +12,19 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export default function BlogAbout() {
   return (
     <div className="max-w-4xl mx-auto">
-      {/* 페이지 제목 */}
       <h1 className="text-3xl font-bold text-center mb-8">Behindy 소개</h1>
       
-      {/* 블로그 소개 섹션 */}
       <section className="mb-12">
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <h2 className="text-2xl font-semibold mb-4">📝 블로그 소개</h2>
           <p className="text-gray-700 mb-4">
             Behindy는 개발자들을 위한 블로그 플랫폼입니다. 다양한 개발 경험과 지식을 공유하고, 
-            기술적인 문제 해결 방법을 함께 고민하는 공간입니다. 마크다운 형식으로 쉽게 글을 작성하고, 
-            코드 하이라이팅과 이미지 업로드를 지원하여 풍부한 기술 문서를 작성할 수 있습니다.
-          </p>
-          <p className="text-gray-700">
-            개인 블로그로 시작하여 더 많은 개발자들에게 도움이 되고자 오픈 플랫폼으로 확장했습니다.
-            여러분의 참여로 더욱 풍부한 콘텐츠가 만들어집니다.
+            기술적인 문제 해결 방법을 함께 고민하는 공간입니다. 마크다운 형식으로 글을 작성하고,
+            관리할 수 있습니다.
           </p>
         </div>
       </section>
       
-      {/* 주요 기능 섹션 */}
       <section className="mb-12">
         <h2 className="text-2xl font-semibold mb-6">✨ 주요 기능</h2>
         
@@ -70,7 +63,6 @@ export default function BlogAbout() {
         </div>
       </section>
       
-      {/* 기술 스택 섹션 */}
       <section className="mb-12">
         <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-2xl font-semibold mb-4">🛠️ 기술 스택</h2>
@@ -116,7 +108,6 @@ export default function BlogAbout() {
         </div>
       </section>
       
-      {/* 연락처 및 피드백 섹션 */}
       <section className="mb-12">
         <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-2xl font-semibold mb-4">📬 연락처 및 피드백</h2>

@@ -4,14 +4,12 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
 const REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI;
 
-// OAuth 클라이언트 생성
 const oauth2Client = new OAuth2Client(
   GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET,
   REDIRECT_URI
 );
 
-// Google 로그인 URL 생성 (로깅 추가)
 export function getGoogleAuthURL() {
   const scopes = [
     'https://www.googleapis.com/auth/userinfo.profile',
@@ -21,14 +19,14 @@ export function getGoogleAuthURL() {
   const authUrl = oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: scopes,
-    prompt: 'select_account'
+    prompt: 'consent',
+    include_granted_scopes: true,
+    login_hint: 'Please use system browser for login'
   });
   
-  console.log('Generated Google Auth URL:', authUrl);
   return authUrl;
 }
 
-// 인증 코드로 토큰 교환 (로깅 추가)
 export async function getGoogleTokens(code: string) {
   try {
 
@@ -41,7 +39,6 @@ export async function getGoogleTokens(code: string) {
   }
 }
 
-// Google 사용자 정보 가져오기
 export async function getGoogleUserInfo(access_token: string) {
   try {
     const response = await fetch(

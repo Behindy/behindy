@@ -25,16 +25,12 @@ export default function Header({ user: propUser }: HeaderProps) {
   const navigate = useNavigate();
   const isMobile = useMediaQuery("(max-width: 768px)");
   
-  // props로 전달된 user가 있으면 사용하고, 없으면 loader에서 가져옴
   let userData: User | null = null;
   
   try {
-    // useLoaderData는 레이아웃 컴포넌트에서는 사용하되, 
-    // 별도 레이아웃에서는 에러가 발생할 수 있으므로 try-catch로 처리
     const loaderData = useLoaderData<LoaderData>();
     userData = propUser || loaderData.user;
   } catch (e) {
-    // useLoaderData 사용 중 오류 발생 시 props의 user 사용
     userData = propUser || null;
   }
   

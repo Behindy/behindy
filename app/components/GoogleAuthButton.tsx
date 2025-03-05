@@ -74,9 +74,23 @@ export default function GoogleAuthButton({
     
     setIsLoading(true);
     
+    // authUrl을 Chrome Custom Tabs로 열도록 수정
+    // Android에서는 window.location 대신 intent:// URL 스키마 사용 고려
     const authUrl = `/auth/google?redirect=${encodeURIComponent(window.location.pathname)}`;
     
-    window.location.href = authUrl;
+    // 외부 브라우저를 열거나 앱 스위칭 처리
+    // 네이티브 앱이라면 기기의 기본 브라우저를 여는 로직 필요
+    if (typeof window !== 'undefined') {
+      // 모바일 브라우저로 판단되면 그냥 리다이렉트
+      if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && 
+          /Chrome|Safari|Firefox|MSIE|Trident/i.test(navigator.userAgent)) {
+        window.location.href = authUrl;
+      } else {
+        // 앱 내부 웹뷰로 판단되면 사용자에게 외부 브라우저 사용 안내
+        alert('Google 로그인을 위해 외부 브라우저로 이동합니다');
+        window.location.href = authUrl;
+      }
+    }
   };
 
   return (

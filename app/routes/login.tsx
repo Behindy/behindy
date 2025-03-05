@@ -1,14 +1,18 @@
 import { json, redirect, ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { Form, Link, useActionData, useSearchParams, useLoaderData } from "@remix-run/react";
 import { login, createUserSession, authenticateUser } from "../utils/auth.server";
-import { useEffect, useRef } from "react";
+import GoogleAuthButton from "../components/GoogleAuthButton";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const user = await authenticateUser(request);
   if (user) return redirect("/");
   
+  const url = new URL(request.url);
+  const redirectTo = url.searchParams.get("redirectTo") || "/";
+  
   return json({
-    googleClientId: process.env.GOOGLE_CLIENT_ID
+    googleClientId: process.env.GOOGLE_CLIENT_ID,
+    redirectTo
   });
 }
 
@@ -43,52 +47,28 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function Login() {
-  const { googleClientId } = useLoaderData<typeof loader>();
+  const { googleClientId, redirectTo } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const [searchParams] = useSearchParams();
-  const redirectTo = searchParams.get("redirectTo") || "/";
-  const googleSigninButtonRef = useRef<HTMLDivElement>(null);
   
-  useEffect(() => {
-    const handleCredentialResponse = (response: {credential: string}) => {
-      fetch("/api/auth/google-token", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ token: response.credential }),
+  const handleGoogleSuccess = (credential: string) => {
+    fetch("/api/auth/google-token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ token: credential, redirectTo }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          window.location.href = redirectTo || "/";
+        }
       })
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            window.location.href = "/";
-          }
-        })
-        .catch(err => {
-          console.error("Login failed:", err);
-        });
-    };
-    
-    const checkGoogleLoaded = () => {
-      if (typeof window !== "undefined" && window.google && googleSigninButtonRef.current && googleClientId) {
-        window.google.accounts.id.initialize({
-          client_id: googleClientId,
-          callback: handleCredentialResponse,
-          auto_select: false,
-          ux_mode: "popup",
-        });
-        
-        window.google.accounts.id.renderButton(
-          googleSigninButtonRef.current,
-          { theme: "outline", size: "large", width: 240 }
-        );
-      } else {
-        setTimeout(checkGoogleLoaded, 100);
-      }
-    };
-    
-    checkGoogleLoaded();
-  }, [googleClientId]);
+      .catch(err => {
+        console.error("Google 로그인 실패:", err);
+      });
+  };
 
   return (
     <div className="flex min-h-screen flex-col justify-center bg-slate-50">
@@ -162,7 +142,11 @@ export default function Login() {
             </div>
 
             <div className="mt-6 flex justify-center">
-              <div ref={googleSigninButtonRef} id="google-signin-button"></div>
+              <GoogleAuthButton 
+                googleClientId={googleClientId}
+                onSuccess={handleGoogleSuccess}
+                buttonText="Google로 로그인"
+              />
             </div>
           </div>
 

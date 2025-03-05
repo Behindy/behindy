@@ -11,10 +11,9 @@ import {
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 export async function action({ request }: ActionFunctionArgs) {
-  const { token } = await request.json();
+  const { token, redirectTo = "/" } = await request.json();
 
   try {
-    // ID 토큰 검증
     const ticket = await client.verifyIdToken({
       idToken: token,
       audience: process.env.GOOGLE_CLIENT_ID,
@@ -25,25 +24,26 @@ export async function action({ request }: ActionFunctionArgs) {
       return json({ success: false, error: "Invalid token" }, { status: 400 });
     }
 
-    // 사용자 정보 추출
     const { email, name, picture } = tokenPayload;
 
-    // 기존 사용자 확인 또는 새 사용자 생성
     let user = await db.user.findUnique({ where: { email: email } });
     
     if (!user) {
-      // 새 사용자 생성
       user = await db.user.create({
         data: {
           email: email,
           name: name || email.split('@')[0],
-          password: '',  // 소셜 로그인은 비밀번호 없음
+          password: '',
           profileImage: picture,
         },
       });
+    } else if (user.profileImage !== picture && picture) {
+      user = await db.user.update({
+        where: { id: user.id },
+        data: { profileImage: picture }
+      });
     }
 
-    // JWT 페이로드 생성 및 세션 생성
     const jwtPayload = {
       userId: user.id,
       email: user.email,
@@ -54,8 +54,26 @@ export async function action({ request }: ActionFunctionArgs) {
     const refreshToken = generateRefreshToken(jwtPayload);
     await saveRefreshToken(user.id, refreshToken);
     
-    // 세션 생성 및 응답
-    return createUserSession(accessToken, user.id, "/");
+    const session = await createUserSession(accessToken, user.id, redirectTo);
+    
+    const headers = new Headers(session.headers);
+    
+    return json(
+      { 
+        success: true, 
+        user: { 
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          profileImage: user.profileImage
+        } 
+      }, 
+      { 
+        headers: {
+          "Set-Cookie": headers.get("Set-Cookie") || "",
+        }
+      }
+    );
     
   } catch (error) {
     console.error("Google token verification error:", error);

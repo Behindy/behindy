@@ -10,8 +10,6 @@ import {
 } from "./jwt.server";
 import { getGoogleTokens, getGoogleUserInfo} from "./google.server";
 
-
-// 파일 상단에 타입 정의 추가
 type LoginForm = {
   email: string;
   password: string;
@@ -21,7 +19,6 @@ type RegisterForm = LoginForm & {
   name: string;
 };
 
-// 세션 스토리지 설정
 export const sessionStorage = createCookieSessionStorage({
   cookie: {
     name: "behindy_session",
@@ -34,7 +31,6 @@ export const sessionStorage = createCookieSessionStorage({
   },
 });
 
-// 로그인 처리
 export async function login({ email, password }: LoginForm) {
   const user = await db.user.findUnique({
     where: { email },
@@ -65,7 +61,6 @@ export async function login({ email, password }: LoginForm) {
   };
 }
 
-// 사용자 세션 생성 (액세스 토큰과 세션 ID만 쿠키에 저장)
 export async function createUserSession(accessToken: string, sessionId: string, redirectTo: string) {
   const session = await sessionStorage.getSession();
   session.set("accessToken", accessToken);
@@ -78,7 +73,6 @@ export async function createUserSession(accessToken: string, sessionId: string, 
   });
 }
 
-// 토큰에서 사용자 인증 정보 가져오기
 export async function authenticateUser(request: Request) {
   const session = await sessionStorage.getSession(request.headers.get("Cookie"));
   const accessToken = session.get("accessToken");
@@ -87,7 +81,6 @@ export async function authenticateUser(request: Request) {
   
   const payload = verifyAccessToken(accessToken);
   if (payload) {
-    // 액세스 토큰이 유효하면 바로 사용자 정보 반환
     try {
       const user = await db.user.findUnique({
         where: { id: payload.userId },
@@ -98,7 +91,6 @@ export async function authenticateUser(request: Request) {
       return null;
     }
   } else {
-    // 액세스 토큰이 만료되었으면 세션 ID로 리프레시 토큰 찾아 갱신 시도
     const sessionId = session.get("sessionId");
     if (!sessionId) return null;
     
@@ -106,10 +98,8 @@ export async function authenticateUser(request: Request) {
   }
 }
 
-// 세션 ID를 사용해 리프레시 토큰 찾아 액세스 토큰 갱신
 async function refreshUserSession(sessionId: string, session: SessionData) {
   try {
-    // 사용자 ID로 가장 최근의 리프레시 토큰 찾기
     const latestToken = await db.refreshToken.findFirst({
       where: { userId: sessionId },
       orderBy: { createdAt: 'desc' },
@@ -124,20 +114,16 @@ async function refreshUserSession(sessionId: string, session: SessionData) {
       return null;
     }
     
-    // 리프레시 토큰 검증
     const payload = verifyRefreshToken(latestToken.token);
     if (!payload) {
-      // 토큰이 유효하지 않으면 삭제 시도
       try {
         await db.refreshToken.delete({ where: { id: latestToken.id } });
       } catch (deleteError) {
         console.error("Invalid token deletion error:", deleteError);
-        // 오류가 발생해도 계속 진행
       }
       return null;
     }
     
-    // 새 액세스 토큰 발급
     const newPayload = {
       userId: latestToken.user.id,
       email: latestToken.user.email,
@@ -146,25 +132,17 @@ async function refreshUserSession(sessionId: string, session: SessionData) {
     
     const accessToken = generateAccessToken(newPayload);
     
-    // 세션 업데이트
     session.set("accessToken", accessToken);
     
-    // 중요: 기존 리프레시 토큰 교체는 생략
-    // 이미 존재하는 토큰을 계속 사용
-    
-    // 사용자 정보 반환
     return latestToken.user;
   } catch (error) {
     console.error("Session refresh error:", error);
     
-    // 데이터베이스 연결 오류인 경우에 대한 특별 처리
-    // Prisma 오류 코드를 확인하여 적절히 대응
     if (error && typeof error === 'object' && 'code' in error) {
       const prismaError = error as { code: string };
       
       if (prismaError.code === 'P1017') { // 서버 연결 닫힘
         console.warn('Database connection lost during session refresh, maintaining current session');
-        // 연결 오류 시 null 반환 - 이후 인증 로직에서 적절히 처리
         return null;
       }
       
@@ -178,12 +156,10 @@ async function refreshUserSession(sessionId: string, session: SessionData) {
   }
 }
 
-// 로그아웃 처리
 export async function logout(request: Request) {
   const session = await sessionStorage.getSession(request.headers.get("Cookie"));
   const sessionId = session.get("sessionId");
   
-  // 세션 ID가 있으면 해당 사용자의 모든 리프레시 토큰 삭제
   if (sessionId) {
     try {
       await db.refreshToken.deleteMany({
@@ -200,7 +176,6 @@ export async function logout(request: Request) {
     },
   });
 }
-// auth.server.ts에 추가
 export async function register({ email, password, name }: RegisterForm) {
   const hashedPassword = await bcrypt.hash(password, 10);
   
@@ -212,17 +187,14 @@ export async function register({ email, password, name }: RegisterForm) {
     },
   });
 
-  // JWT 페이로드 생성
   const payload = {
     userId: user.id,
     email: user.email,
     role: "USER"
   };
 
-  // 액세스 토큰 생성
   const accessToken = generateAccessToken(payload);
   
-  // 리프레시 토큰 생성 및 저장 (서버에만 저장)
   const refreshToken = generateRefreshToken(payload);
   await saveRefreshToken(user.id, refreshToken);
 
@@ -233,8 +205,6 @@ export async function register({ email, password, name }: RegisterForm) {
   };
 }
 
-// 인증 필요한 페이지에 대한 보호
-// 기존 requireAuth 유지 (글 작성, 편집 등에 사용)
 export async function requireAuth(
   request: Request,
   redirectTo: string = new URL(request.url).pathname
@@ -250,44 +220,71 @@ export async function requireAuth(
   return user;
 }
 
-// 추가: 블로그 접근용 함수 (로그인 필요 없음)
 export async function getBlogUser(request: Request) {
   const user = await authenticateUser(request);
   return user; // user가 null이어도 리다이렉트하지 않음
 }
 
-// Google 로그인 처리
-export async function handleGoogleLogin(code: string) {
+// auth.server.ts에 추가 또는 수정
+export async function handleGoogleLogin(code: string, redirectPath = "/") {
+  // console.log('=== handleGoogleLogin 시작 ===');
+  // console.log('인증 코드:', code.substring(0, 10) + '...');
+  // console.log('리디렉션 경로:', redirectPath);
+  
   try {
     // Google 인증 코드로 토큰 교환
+    // console.log('Google 토큰 요청 시작...');
     const tokens = await getGoogleTokens(code);
     const access_token = tokens.access_token;
 
     if (!access_token) {
+      console.error('액세스 토큰이 없습니다');
       throw new Error('Google OAuth did not return an access token.');
     }
+    // console.log('액세스 토큰 획득 성공');
 
     // 사용자 정보 가져오기
+    // console.log('사용자 정보 요청 시작...');
     const googleUser = await getGoogleUserInfo(access_token);
+    // console.log('사용자 정보 획득 성공:', googleUser.email);
     
     // 이메일로 기존 사용자 확인
+    // console.log('DB에서 사용자 검색 시작...');
     let user = await db.user.findUnique({
       where: { email: googleUser.email }
     });
     
     // 사용자가 없으면 새로 생성
     if (!user) {
+      // console.log('새 사용자 생성 시작...');
       user = await db.user.create({
         data: {
           email: googleUser.email,
-          name: googleUser.name,
+          name: googleUser.name || googleUser.email.split('@')[0],
           password: '', // 소셜 로그인은 비밀번호가 없음
           profileImage: googleUser.picture
         }
       });
+      // console.log('새 사용자 생성 완료:', user.id);
+    } else {
+      // console.log('기존 사용자 발견:', user.id);
+      // 프로필 이미지가 없거나 다른 경우 업데이트
+      if (user.profileImage !== googleUser.picture && googleUser.picture) {
+        // console.log('사용자 프로필 이미지 업데이트...');
+        user = await db.user.update({
+          where: { id: user.id },
+          data: { 
+            profileImage: googleUser.picture,
+            // 이름이 없는 경우에만 업데이트
+            name: user.name || googleUser.name || googleUser.email.split('@')[0]
+          }
+        });
+        // console.log('사용자 프로필 업데이트 완료');
+      }
     }
     
     // JWT 페이로드 생성
+    // console.log('JWT 토큰 생성 시작...');
     const payload = {
       userId: user.id,
       email: user.email,
@@ -296,16 +293,26 @@ export async function handleGoogleLogin(code: string) {
     
     // 액세스 토큰 생성
     const accessToken = generateAccessToken(payload);
+    // console.log('액세스 토큰 생성 완료');
     
     // 리프레시 토큰 생성 및 저장
     const refreshToken = generateRefreshToken(payload);
-    await saveRefreshToken(user.id, refreshToken);
+    // console.log('리프레시 토큰 생성 완료');
     
-    // 세션 생성 및 홈페이지로 리디렉트
-    // 명시적으로 redirectTo를 root path로 지정
-    return createUserSession(accessToken, user.id, "/");
+    // console.log('DB에 리프레시 토큰 저장 시작...');
+    await saveRefreshToken(user.id, refreshToken);
+    // console.log('리프레시 토큰 저장 완료');
+    
+    // 세션 생성 및 지정된 경로로 리디렉트
+    // console.log('세션 생성 및 리디렉션 처리...');
+    // console.log('리디렉션 경로:', redirectPath);
+    
+    return createUserSession(accessToken, user.id, redirectPath);
   } catch (error) {
-    console.error('Google login error:', error);
+    console.error('=== Google 로그인 오류 ===');
+    console.error('오류 타입:', error instanceof Error ? error.constructor.name : typeof error);
+    console.error('오류 메시지:', error instanceof Error ? error.message : String(error));
+    console.error('스택 트레이스:', error instanceof Error ? error.stack : '스택 트레이스 없음');
     throw error;
   }
 }

@@ -53,7 +53,7 @@ try {
         error.message.includes('ConnectionReset') ||
         error.message.includes('104') || 
         error.message.includes('10054')) {
-      console.log('Attempting to reconnect to database...');
+      // console.log('Attempting to reconnect to database...');
       db.$disconnect()
         .then(() => db.$connect())
         .catch(console.error);
